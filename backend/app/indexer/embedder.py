@@ -3,6 +3,7 @@ from qdrant_client.models import PointStruct, Distance, VectorParams, ScalarQuan
 
 from app.config import settings
 from llama_index.embeddings.ollama import OllamaEmbedding
+from app.indexer import bm25
 
 qdrant = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
 COLLECTION_NAME = "multimodal_rag"
@@ -48,9 +49,14 @@ def embed_and_upsert(chunks: list, file_path: str, filename: str, file_type: str
         embeddings = embedder.get_text_embedding_batch(batch)
         for i, (chunk, emb) in enumerate(zip(batch, embeddings)):
             global_idx = batch_start + i
+            doc_id = f"{file_path}_{global_idx}"
+            
+            # Индексируем в BM25
+            bm25.index_text_bm25(doc_id, chunk)
+            
             points.append(
                 PointStruct(
-                    id=f"{file_path}_{global_idx}",
+                    id=doc_id,
                     vector=emb,
                     payload={
                         "text": chunk,

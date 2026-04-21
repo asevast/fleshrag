@@ -9,19 +9,27 @@ from app.indexer.parsers.office import parse_docx, parse_xlsx, parse_pptx, parse
 from app.indexer.parsers.audio import parse_audio
 from app.indexer.parsers.image import parse_image
 from app.indexer.parsers.video import parse_video
+from app.indexer.parsers.code import parse_code, parse_code_simple
+from app.indexer.parsers.markitdown import parse_markitdown
 from app.indexer.chunker import chunk_text
 from app.indexer.embedder import embed_and_upsert
+from app.indexer import bm25
+
+# Инициализация BM25 индекса при загрузке
+bm25.get_bm25_index()
 
 
 IGNORE_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", ".idea", ".vscode", "dist", "build", ".pytest_cache", ".mypy_cache"}
 IGNORE_EXTS = {"", ".exe", ".dll", ".bin", ".iso", ".img", ".tmp", ".lock", ".log", ".db", ".sqlite", ".sqlite3", ".pyc", ".pyo", ".so", ".dylib"}
 
 # Статические расширения по типам
-TEXT_EXTS = {".txt", ".md", ".py", ".js", ".ts", ".jsx", ".tsx", ".json", ".yaml", ".yml", ".csv", ".html", ".htm", ".xml", ".css", ".scss", ".less", ".sh", ".bat", ".ps1", ".sql", ".cpp", ".c", ".h", ".hpp", ".java", ".go", ".rs", ".rb", ".php", ".swift", ".kt", ".r", ".lua", ".pl", ".dockerfile", ".ini", ".cfg", ".toml", ".env", ".gitignore", ".gitattributes"}
+TEXT_EXTS = {".txt", ".md", ".json", ".yaml", ".yml", ".csv", ".html", ".htm", ".xml", ".css", ".scss", ".less", ".sh", ".bat", ".ps1", ".sql", ".dockerfile", ".ini", ".cfg", ".toml", ".env", ".gitignore", ".gitattributes"}
+CODE_EXTS = {".py", ".js", ".ts", ".jsx", ".tsx", ".cpp", ".c", ".h", ".hpp", ".java", ".go", ".rs", ".rb", ".php", ".swift", ".kt", ".r", ".lua", ".pl"}
 AUDIO_EXTS = {".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".wma", ".opus", ".oga"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".svg", ".ico"}
 VIDEO_EXTS = {".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".3gp"}
 OFFICE_EXTS = {".docx", ".xlsx", ".pptx"}
+PDF_EXTS = {".pdf"}
 
 
 def file_hash(path: str) -> str:
@@ -55,7 +63,7 @@ def index_directory(path: str):
 
 
 def extract_text(file_path: str, ext: str) -> str:
-    if ext == ".pdf":
+    if ext in PDF_EXTS:
         return parse_pdf(file_path)
     elif ext == ".docx":
         return parse_docx(file_path)
@@ -65,6 +73,10 @@ def extract_text(file_path: str, ext: str) -> str:
         return parse_pptx(file_path)
     elif ext in TEXT_EXTS:
         return parse_txt(file_path)
+    elif ext in CODE_EXTS:
+        # Для кода используем AST-парсинг, затем собираем чанки
+        chunks = parse_code(file_path)
+        return "\n\n".join([c.get("code", "") for c in chunks])
     elif ext in AUDIO_EXTS:
         return parse_audio(file_path)
     elif ext in IMAGE_EXTS:
@@ -72,14 +84,8 @@ def extract_text(file_path: str, ext: str) -> str:
     elif ext in VIDEO_EXTS:
         return parse_video(file_path)
     else:
-        # Fallback: markitdown если доступен
-        try:
-            from markitdown import MarkItDown
-            md = MarkItDown()
-            result = md.convert(file_path)
-            return result.text_content
-        except Exception:
-            return ""
+        # Fallback: markitdown для остальных форматов
+        return parse_markitdown(file_path)
 
 
 def index_single_file(file_path: str, db: Session = None):

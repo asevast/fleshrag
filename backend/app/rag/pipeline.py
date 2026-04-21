@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import List, Optional, Dict, Any, AsyncGenerator
+from typing import List, Optional, Dict, Any, AsyncGenerator, Tuple
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
@@ -10,6 +10,7 @@ from llama_index.core import Settings
 
 from app.config import settings
 from app.indexer.embedder import COLLECTION_NAME
+from app.indexer import bm25
 from app.rag.reranker import rerank
 
 qdrant = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
@@ -19,6 +20,10 @@ llm = Ollama(model=settings.llm_model, base_url=settings.ollama_host, request_ti
 
 Settings.embed_model = embedder
 Settings.llm = llm
+
+# Коэффициенты для гибридного поиска
+DENSE_WEIGHT = 0.7
+BM25_WEIGHT = 0.3
 
 
 def _build_qdrant_filter(filters: Optional[dict] = None) -> Optional[qdrant_models.Filter]:
@@ -74,30 +79,150 @@ def _build_qdrant_filter(filters: Optional[dict] = None) -> Optional[qdrant_mode
     return qdrant_models.Filter(must=conditions) if conditions else None
 
 
-async def search_query(query: str, top_k: int = None, filters: Optional[dict] = None) -> List[Dict[str, Any]]:
+async def search_query(query: str, top_k: int = None, filters: Optional[dict] = None, use_hybrid: bool = True) -> List[Dict[str, Any]]:
+    """
+    Гибридный поиск: BM25 + dense embeddings с reciprocal rank fusion.
+    """
     top_k = top_k or settings.top_k_search
-    embedding = embedder.get_text_embedding(query)
     
     qdrant_filter = _build_qdrant_filter(filters)
     
-    search_result = qdrant.search(
+    # 1. Dense поиск (векторы)
+    embedding = embedder.get_text_embedding(query)
+    dense_results = qdrant.search(
         collection_name=COLLECTION_NAME,
         query_vector=embedding,
-        limit=top_k,
+        limit=top_k * 2,  # Берём больше для fusion
         query_filter=qdrant_filter,
         with_payload=True,
     )
-    results = []
-    for point in search_result:
+    
+    # 2. BM25 поиск (текст)
+    bm25_results = []
+    if use_hybrid:
+        bm25_matches = bm25.search_bm25(query, top_k=top_k * 2)
+        # Для BM25 нужно получить payload из Qdrant по ID
+        for doc_id, score in bm25_matches:
+            # doc_id имеет формат "{path}_{chunk_index}"
+            # Извлекаем путь
+            parts = doc_id.rsplit('_', 1)
+            if len(parts) == 2:
+                path = parts[0]
+                # Ищем в Qdrant по path
+                try:
+                    found = qdrant.scroll(
+                        collection_name=COLLECTION_NAME,
+                        scroll_filter=qdrant_models.Filter(
+                            must=[{"key": "path", "match": {"value": path}}]
+                        ),
+                        limit=5,
+                        with_payload=True,
+                        with_vectors=False,
+                    )[0]
+                    for point in found:
+                        bm25_results.append({
+                            "path": point.payload.get("path", ""),
+                            "filename": point.payload.get("filename", ""),
+                            "snippet": point.payload.get("text", "")[:500],
+                            "score": score,
+                            "page": point.payload.get("page"),
+                            "file_type": point.payload.get("file_type"),
+                            "_id": point.id,
+                        })
+                except Exception:
+                    pass
+    
+    # 3. Reciprocal Rank Fusion
+    if use_hybrid and bm25_results:
+        return _reciprocal_rank_fusion(dense_results, bm25_results, top_k)
+    else:
+        # Только dense
+        results = []
+        for point in dense_results[:top_k]:
+            payload = point.payload or {}
+            results.append({
+                "path": payload.get("path", ""),
+                "filename": payload.get("filename", ""),
+                "snippet": payload.get("text", "")[:500],
+                "score": point.score,
+                "page": payload.get("page"),
+                "file_type": payload.get("file_type"),
+            })
+        return results
+
+
+def _reciprocal_rank_fusion(dense_results, bm25_results: List[Dict], top_k: int) -> List[Dict[str, Any]]:
+    """
+    Reciprocal Rank Fusion для объединения dense и BM25 результатов.
+    """
+    # Нормализуем dense результаты
+    dense_ranked = []
+    for i, point in enumerate(dense_results):
         payload = point.payload or {}
-        results.append({
+        dense_ranked.append({
             "path": payload.get("path", ""),
             "filename": payload.get("filename", ""),
             "snippet": payload.get("text", "")[:500],
-            "score": point.score,
+            "dense_score": point.score,
+            "bm25_score": 0.0,
             "page": payload.get("page"),
             "file_type": payload.get("file_type"),
         })
+    
+    # Словарь для fusion по path
+    fused: Dict[str, Dict] = {}
+    
+    # Добавляем dense результаты
+    for i, item in enumerate(dense_ranked):
+        key = item["path"]
+        if key not in fused:
+            fused[key] = item
+            fused[key]["_dense_rank"] = i + 1
+    
+    # Добавляем BM25 результаты
+    for i, item in enumerate(bm25_results):
+        key = item["path"]
+        if key in fused:
+            fused[key]["bm25_score"] = item["score"]
+            fused[key]["_bm25_rank"] = i + 1
+        else:
+            fused[key] = {
+                "path": item["path"],
+                "filename": item["filename"],
+                "snippet": item["snippet"],
+                "dense_score": 0.0,
+                "bm25_score": item["score"],
+                "page": item.get("page"),
+                "file_type": item.get("file_type"),
+                "_bm25_rank": i + 1,
+            }
+    
+    # Вычисляем финальный score
+    for item in fused.values():
+        dense_rank = item.get("_dense_rank", len(dense_ranked) + 1)
+        bm25_rank = item.get("_bm25_rank", len(bm25_results) + 1)
+        
+        # Reciprocal Rank Fusion formula
+        item["score"] = (
+            DENSE_WEIGHT / (dense_rank + 60) +
+            BM25_WEIGHT / (bm25_rank + 60)
+        )
+    
+    # Сортируем по финальному score
+    sorted_results = sorted(fused.values(), key=lambda x: x["score"], reverse=True)
+    
+    # Убираем служебные поля
+    results = []
+    for item in sorted_results[:top_k]:
+        results.append({
+            "path": item["path"],
+            "filename": item["filename"],
+            "snippet": item["snippet"],
+            "score": item["score"],
+            "page": item.get("page"),
+            "file_type": item.get("file_type"),
+        })
+    
     return results
 
 
