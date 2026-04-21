@@ -2,8 +2,8 @@ import os
 import datetime
 import json
 from pathlib import Path
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Float, Boolean, ForeignKey
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
 from app.config import settings
 
@@ -40,6 +40,29 @@ class AppSetting(Base):
     key = Column(String, unique=True, nullable=False, index=True)
     value = Column(Text, nullable=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
+    role = Column(String, nullable=False)  # user, assistant
+    content = Column(Text, nullable=False)
+    sources = Column(Text, nullable=True)  # JSON-список источников
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    conversation = relationship("Conversation", back_populates="messages")
 
 
 Base.metadata.create_all(bind=engine)
