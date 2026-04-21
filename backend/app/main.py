@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import threading
 
-from app.api import search, files, index
+from app.api import search, files, index, settings
 from app.indexer.watchdog_service import run_watchdog_forever
 
 app = FastAPI(title="Multimodal RAG", version="0.1.0")
@@ -18,6 +18,7 @@ app.add_middleware(
 app.include_router(search.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
 app.include_router(index.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
 
 
 @app.get("/api/health")
