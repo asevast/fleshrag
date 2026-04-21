@@ -7,6 +7,7 @@ from llama_index.embeddings.ollama import OllamaEmbedding
 qdrant = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
 COLLECTION_NAME = "multimodal_rag"
 
+
 def _ensure_collection():
     if not qdrant.collection_exists(COLLECTION_NAME):
         qdrant.create_collection(
@@ -20,6 +21,21 @@ def _ensure_collection():
 
 
 EMBED_BATCH_SIZE = 32
+
+
+def delete_file_chunks(file_path: str):
+    """Удаляет все точки Qdrant для указанного файла по payload-фильтру."""
+    _ensure_collection()
+    qdrant.delete(
+        collection_name=COLLECTION_NAME,
+        points_selector=None,
+        wait=True,
+        filter={
+            "must": [
+                {"key": "path", "match": {"value": file_path}}
+            ]
+        },
+    )
 
 
 def embed_and_upsert(chunks: list, file_path: str, filename: str, file_type: str):

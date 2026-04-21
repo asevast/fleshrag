@@ -15,6 +15,8 @@ celery_app.conf.update(
     enable_utc=True,
     worker_prefetch_multiplier=1,
     task_acks_late=True,
+    task_default_retry_delay=30,  # секунд между ретраями
+    task_max_retries=3,
 )
 
 
@@ -26,13 +28,19 @@ def at_start(sender, **k):
             index_directory_task.delay(path)
 
 
-@celery_app.task
-def index_directory_task(path: str):
+@celery_app.task(bind=True, max_retries=3)
+def index_directory_task(self, path: str):
     from app.indexer.watcher import index_directory
-    index_directory(path)
+    try:
+        index_directory(path)
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=30)
 
 
-@celery_app.task
-def index_file_task(file_path: str):
+@celery_app.task(bind=True, max_retries=3)
+def index_file_task(self, file_path: str):
     from app.indexer.watcher import index_single_file
-    index_single_file(file_path)
+    try:
+        index_single_file(file_path)
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=10)

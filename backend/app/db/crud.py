@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.db.models import IndexedFile
 
@@ -33,3 +34,18 @@ def create_or_update_file(db: Session, path: str, filename: str, file_hash: str,
 
 def get_indexed_files(db: Session, skip: int = 0, limit: int = 100):
     return db.query(IndexedFile).offset(skip).limit(limit).all()
+
+
+def get_index_stats(db: Session) -> dict:
+    counts = db.query(
+        IndexedFile.status,
+        func.count(IndexedFile.id)
+    ).group_by(IndexedFile.status).all()
+    total = db.query(func.count(IndexedFile.id)).scalar()
+    stats = {status: count for status, count in counts}
+    stats["total"] = total or 0
+    stats.setdefault("indexed", 0)
+    stats.setdefault("pending", 0)
+    stats.setdefault("error", 0)
+    stats.setdefault("empty", 0)
+    return stats

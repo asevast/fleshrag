@@ -1,7 +1,10 @@
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.tasks.celery_app import index_directory_task
+from app.db.models import get_db
+from app.db.crud import get_index_stats
 
 router = APIRouter()
 
@@ -11,8 +14,12 @@ class IndexPathRequest(BaseModel):
 
 
 @router.get("/index/status")
-async def index_status():
-    return {"status": "ok", "message": "Use celery flower or logs for detailed status"}
+async def index_status(db: Session = Depends(get_db)):
+    stats = get_index_stats(db)
+    return {
+        "status": "ok",
+        "stats": stats,
+    }
 
 
 @router.post("/index/trigger")

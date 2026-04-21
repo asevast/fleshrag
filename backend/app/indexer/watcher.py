@@ -82,8 +82,11 @@ def extract_text(file_path: str, ext: str) -> str:
             return ""
 
 
-def index_single_file(file_path: str):
-    db = SessionLocal()
+def index_single_file(file_path: str, db: Session = None):
+    """Индексирует один файл. Удаляет старые чанки при переиндексации."""
+    own_session = db is None
+    if own_session:
+        db = SessionLocal()
     try:
         ext = os.path.splitext(file_path)[1].lower()
         mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
@@ -92,6 +95,10 @@ def index_single_file(file_path: str):
         existing = create_or_update_file(db, file_path, os.path.basename(file_path), fhash, ext, mtime)
         if existing and existing.status == "indexed" and existing.file_hash == fhash:
             return  # Файл не изменился — пропускаем
+
+        # Удаляем старые чанки из Qdrant перед переиндексацией
+        from app.indexer.embedder import delete_file_chunks
+        delete_file_chunks(file_path)
 
         text = extract_text(file_path, ext)
 
@@ -109,4 +116,5 @@ def index_single_file(file_path: str):
         create_or_update_file(db, file_path, os.path.basename(file_path), "", ext, datetime.utcnow(), status="error", error_message=str(e))
         raise
     finally:
-        db.close()
+        if own_session:
+            db.close()
