@@ -1,0 +1,83 @@
+version: "3.9"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ./volumes/ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: 5m
+    restart: unless-stopped
+    # Для GPU (NVIDIA): раскомментировать ниже
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - ./volumes/qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - ./volumes/redis_data:/data
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    volumes:
+      - ./volumes/sqlite_data:/app/data
+      - ./test_data:/mnt/indexed:ro   # Папки для индексации (read-only)
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      REDIS_URL: redis://redis:6379/0
+      LLM_MODEL: qwen2.5:3b
+      EMBED_MODEL: nomic-embed-text
+      DATABASE_URL: sqlite:////app/data/metadata.db
+      INDEX_PATHS: /mnt/indexed
+    ports:
+      - "8000:8000"
+    depends_on:
+      - ollama
+      - qdrant
+      - redis
+    restart: unless-stopped
+
+  worker:
+    build: ./backend
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      - ./volumes/sqlite_data:/app/data
+      - ./test_data:/mnt/indexed:ro
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      QDRANT_HOST: qdrant
+      REDIS_URL: redis://redis:6379/0
+      INDEX_PATHS: /mnt/indexed
+    depends_on:
+      - redis
+      - ollama
+      - qdrant
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

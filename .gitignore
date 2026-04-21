@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project volumes (large data)
+volumes/qdrant_data/*
+volumes/sqlite_data/*
+volumes/ollama_models/*
+volumes/redis_data/*
+!volumes/*/.gitkeep
+
+# Test data
+test_data/
