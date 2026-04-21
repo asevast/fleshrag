@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from app.db.models import IndexedFile
+from app.db.models import IndexedFile, AppSetting
 from typing import Optional, List, Dict, Any
 
 
@@ -72,3 +72,26 @@ def get_index_stats(db: Session) -> dict:
 def get_available_file_types(db: Session) -> List[str]:
     result = db.query(IndexedFile.file_type).distinct().all()
     return [rt[0] for rt in result if rt[0]]
+
+
+# Settings CRUD
+def get_setting(db: Session, key: str, default: str = None) -> Optional[str]:
+    setting = db.query(AppSetting).filter(AppSetting.key == key).first()
+    return setting.value if setting else default
+
+
+def set_setting(db: Session, key: str, value: str):
+    setting = db.query(AppSetting).filter(AppSetting.key == key).first()
+    if setting:
+        setting.value = value
+        setting.updated_at = datetime.utcnow()
+    else:
+        setting = AppSetting(key=key, value=value)
+        db.add(setting)
+    db.commit()
+    return setting
+
+
+def get_all_settings(db: Session) -> Dict[str, str]:
+    settings = db.query(AppSetting).all()
+    return {s.key: s.value for s in settings}

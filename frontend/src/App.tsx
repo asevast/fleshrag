@@ -4,6 +4,7 @@ import ResultCard from './components/ResultCard'
 import FilePreview from './components/FilePreview'
 import FileBrowser from './components/FileBrowser'
 import AnswerStream from './components/AnswerStream'
+import SettingsPanel from './components/SettingsPanel'
 import StatusPanel from './components/StatusPanel'
 import { useRag } from './hooks/useRag'
 
@@ -123,6 +124,7 @@ function App() {
         />
       )}
 
+      <SettingsPanel />
       <StatusPanel />
     </div>
   )
