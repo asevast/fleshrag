@@ -19,6 +19,10 @@ class MessageCreate(BaseModel):
     stream: bool = False
 
 
+class ConversationCreate(BaseModel):
+    title: Optional[str] = None
+
+
 class MessageResponse(BaseModel):
     id: int
     conversation_id: int
@@ -37,9 +41,9 @@ class ConversationSummary(BaseModel):
 
 
 @router.post("/conversations")
-async def create_conversation(title: Optional[str] = None, db: Session = Depends(get_db)):
+async def create_conversation(req: Optional[ConversationCreate] = None, db: Session = Depends(get_db)):
     """Создать новый диалог."""
-    conv = crud.create_conversation(db, title)
+    conv = crud.create_conversation(db, req.title if req else None)
     return {
         "id": conv.id,
         "title": conv.title,
