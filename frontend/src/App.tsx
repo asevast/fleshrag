@@ -5,6 +5,7 @@ import {
   FolderTree,
   LibraryBig,
   MessagesSquare,
+  PanelsTopLeft,
   Search,
   Settings2,
   Sparkles,
@@ -14,6 +15,7 @@ import SearchBar from './components/SearchBar'
 import ResultCard from './components/ResultCard'
 import FilePreview from './components/FilePreview'
 import FileBrowser from './components/FileBrowser'
+import AdminConsole from './components/AdminConsole'
 import AnswerStream from './components/AnswerStream'
 import SettingsPanel from './components/SettingsPanel'
 import StatusPanel from './components/StatusPanel'
@@ -43,7 +45,7 @@ function App() {
   const [results, setResults] = useState<Result[]>([])
   const [lastQuery, setLastQuery] = useState('')
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState<'search' | 'ask' | 'conversations'>('search')
+  const [mode, setMode] = useState<'search' | 'ask' | 'conversations' | 'admin'>('search')
   const [showBrowser, setShowBrowser] = useState(false)
   const [previewFile, setPreviewFile] = useState<{ path: string; filename: string } | null>(null)
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
@@ -123,6 +125,7 @@ function App() {
     if (showBrowser) return 'Indexed file library'
     if (mode === 'search') return `${results.length} результатов`
     if (mode === 'ask') return `${rag.sources.length} источников`
+    if (mode === 'admin') return 'Provider, budget and services'
     return selectedConversationId ? `Диалог #${selectedConversationId}` : 'История диалогов'
   }, [mode, rag.sources.length, results.length, selectedConversationId, showBrowser])
 
@@ -131,6 +134,7 @@ function App() {
     { id: 'ask', label: 'Ask', icon: Bot, description: 'Grounded generation with streamed answer' },
     { id: 'conversations', label: 'Dialogs', icon: MessagesSquare, description: 'Saved sessions, history and export' },
     { id: 'files', label: 'Library', icon: LibraryBig, description: 'Inspect indexed folders and previews' },
+    { id: 'admin', label: 'Admin', icon: PanelsTopLeft, description: 'Budget, provider runtime and operations' },
   ] as const
 
   return (
@@ -228,6 +232,8 @@ function App() {
           >
             {showBrowser ? (
               <FileBrowser onPreview={(path, filename) => setPreviewFile({ path, filename })} />
+            ) : mode === 'admin' ? (
+              <AdminConsole />
             ) : mode === 'conversations' ? (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.92fr_1.3fr]">
                 <div className="soft-card rounded-[28px] p-4">
@@ -315,7 +321,7 @@ function App() {
               <div className="soft-card rounded-[28px] p-5">
                 <div className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--muted))]">Intent</div>
                 <div className="mt-2 text-lg font-semibold">
-                  {showBrowser ? 'Browse indexed space' : mode === 'ask' ? 'Grounded answer generation' : mode === 'conversations' ? 'Saved sessions and export' : 'Hybrid retrieval'}
+                  {showBrowser ? 'Browse indexed space' : mode === 'ask' ? 'Grounded answer generation' : mode === 'conversations' ? 'Saved sessions and export' : mode === 'admin' ? 'Operations and budget monitoring' : 'Hybrid retrieval'}
                 </div>
               </div>
               <div className="soft-card rounded-[28px] p-5">
@@ -330,7 +336,7 @@ function App() {
                   <span className="text-xs uppercase tracking-[0.18em]">Roadmap</span>
                 </div>
                 <div className="mt-2 text-sm leading-6 text-[rgb(var(--muted))]">
-                  Следующий интерфейсный шаг: выделенный admin surface, budget dashboard и richer preview для PDF, office и media.
+                  Следующий интерфейсный шаг: полноценный отдельный `/admin` surface, live logs и service management через Docker-aware backend.
                 </div>
               </div>
             </div>
