@@ -53,23 +53,33 @@ interface ConnectionTest {
   embed_model: string
 }
 
+interface AdminSettings {
+  active_provider: 'cloud' | 'local'
+}
+
 export default function AdminConsole() {
   const [status, setStatus] = useState<AdminStatus | null>(null)
   const [budget, setBudget] = useState<BudgetStats | null>(null)
   const [connection, setConnection] = useState<ConnectionTest | null>(null)
+  const [settings, setSettings] = useState<AdminSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [testing, setTesting] = useState(false)
+  const [switching, setSwitching] = useState(false)
+  const [reindexing, setReindexing] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
     try {
-      const [statusRes, budgetRes] = await Promise.all([
+      const [statusRes, budgetRes, settingsRes] = await Promise.all([
         fetch('/api/admin/status'),
         fetch('/api/admin/budget/stats'),
+        fetch('/api/admin/settings'),
       ])
-      const [statusData, budgetData] = await Promise.all([statusRes.json(), budgetRes.json()])
+      const [statusData, budgetData, settingsData] = await Promise.all([statusRes.json(), budgetRes.json(), settingsRes.json()])
       setStatus(statusData)
       setBudget(budgetData)
+      setSettings(settingsData)
     } catch (error) {
       console.error('Failed to load admin console:', error)
     } finally {
@@ -88,6 +98,45 @@ export default function AdminConsole() {
       setConnection(null)
     } finally {
       setTesting(false)
+    }
+  }
+
+  const switchProvider = async (provider: 'cloud' | 'local') => {
+    setSwitching(true)
+    setNotice(null)
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active_provider: provider }),
+      })
+      if (!response.ok) throw new Error('Provider switch failed')
+      const data = await response.json()
+      setSettings(data)
+      setNotice(`Провайдер переключен на ${provider}`)
+      await load()
+    } catch (error) {
+      console.error(error)
+      setNotice('Не удалось переключить провайдера')
+    } finally {
+      setSwitching(false)
+    }
+  }
+
+  const triggerReindex = async () => {
+    setReindexing(true)
+    setNotice(null)
+    try {
+      const response = await fetch('/api/admin/index/reindex-all', { method: 'POST' })
+      if (!response.ok) throw new Error('Reindex failed')
+      const data = await response.json()
+      setNotice(`Переиндексация поставлена в очередь для ${data.count} путей`)
+      await load()
+    } catch (error) {
+      console.error(error)
+      setNotice('Не удалось запустить переиндексацию')
+    } finally {
+      setReindexing(false)
     }
   }
 
@@ -112,6 +161,20 @@ export default function AdminConsole() {
         </div>
         <div className="flex gap-3">
           <button
+            onClick={() => switchProvider(settings?.active_provider === 'cloud' ? 'local' : 'cloud')}
+            disabled={switching}
+            className="rounded-2xl border border-[rgba(207,190,165,0.7)] bg-white px-4 py-3 text-sm font-medium text-[rgb(var(--accent))] transition hover:bg-[rgba(26,116,122,0.08)] disabled:opacity-60"
+          >
+            {switching ? 'Switching...' : settings?.active_provider === 'cloud' ? 'Switch to local' : 'Switch to cloud'}
+          </button>
+          <button
+            onClick={triggerReindex}
+            disabled={reindexing}
+            className="rounded-2xl border border-[rgba(207,190,165,0.7)] bg-white px-4 py-3 text-sm font-medium text-[rgb(var(--brand))] transition hover:bg-[rgba(199,89,48,0.08)] disabled:opacity-60"
+          >
+            {reindexing ? 'Queueing...' : 'Reindex all'}
+          </button>
+          <button
             onClick={runConnectionTest}
             disabled={testing}
             className="rounded-2xl border border-[rgba(207,190,165,0.7)] bg-white px-4 py-3 text-sm font-medium text-[rgb(var(--brand))] transition hover:bg-[rgba(199,89,48,0.08)] disabled:opacity-60"
@@ -127,6 +190,12 @@ export default function AdminConsole() {
           </button>
         </div>
       </div>
+
+      {notice && (
+        <div className="rounded-[24px] border border-[rgba(207,190,165,0.55)] bg-[rgba(255,255,255,0.74)] px-4 py-3 text-sm text-[rgb(var(--muted))]">
+          {notice}
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard

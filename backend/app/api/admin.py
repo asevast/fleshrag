@@ -12,6 +12,7 @@ from app.db import crud
 from app.db.models import TokenLog, get_db
 from app.models import ModelRouter
 from app.services.settings_service import SettingsService
+from app.tasks.celery_app import index_directory_task
 
 router = APIRouter()
 
@@ -134,6 +135,18 @@ async def get_budget_stats(db: Session = Depends(get_db)):
             }
             for row in day_rows
         ],
+    }
+
+
+@router.post("/admin/index/reindex-all")
+async def admin_reindex_all():
+    indexed_paths = [p for p in settings.index_paths.split(":") if p]
+    for path in indexed_paths:
+        index_directory_task.delay(path)
+    return {
+        "status": "queued",
+        "paths": indexed_paths,
+        "count": len(indexed_paths),
     }
 
 
