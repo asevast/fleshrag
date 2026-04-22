@@ -35,7 +35,10 @@ class PullStatus(BaseModel):
 
 @router.get("/models", response_model=OllamaModelsResponse)
 async def list_models():
-    """Список доступных моделей локального и облачного провайдера."""
+    """Список доступных моделей активного провайдера.
+    Для local режима при недоступном Ollama возвращает понятную ошибку.
+    Для cloud режима возвращает каталог облачных моделей.
+    """
     try:
         models = ModelRouter().get_provider().list_models()
         return OllamaModelsResponse(
@@ -50,7 +53,13 @@ async def list_models():
             ]
         )
     except httpx.HTTPError as e:
-        raise HTTPException(status_code=503, detail=f"Provider unavailable: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Local provider is unavailable. Start Ollama via docker compose "
+                "or switch to cloud mode with NEURALDEEP_API_KEY configured."
+            ),
+        )
 
 
 @router.post("/models/pull")

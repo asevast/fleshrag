@@ -42,16 +42,22 @@ class IndexEventHandler(FileSystemEventHandler):
 def start_watchdog(paths: list):
     observer = Observer()
     handler = IndexEventHandler()
+    scheduled = 0
     for path in paths:
         if os.path.isdir(path):
             observer.schedule(handler, path, recursive=True)
+            scheduled += 1
+    if scheduled == 0:
+        return None
     observer.start()
     return observer
 
 
 def run_watchdog_forever():
-    paths = settings.index_paths.split(":")
+    paths = [path for path in settings.index_paths.split(":") if path]
     observer = start_watchdog(paths)
+    if observer is None:
+        return
     try:
         while True:
             time.sleep(1)
