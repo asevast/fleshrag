@@ -6,6 +6,7 @@ import httpx
 
 from app.db.models import get_db
 from app.config import settings
+from app.models import ModelRouter
 
 router = APIRouter()
 
@@ -34,25 +35,22 @@ class PullStatus(BaseModel):
 
 @router.get("/models", response_model=OllamaModelsResponse)
 async def list_models():
-    """Список доступных моделей в Ollama."""
-    async with httpx.AsyncClient() as client:
-        try:
-            resp = await client.get(f"{settings.ollama_host}/api/tags", timeout=10.0)
-            resp.raise_for_status()
-            data = resp.json()
-            return OllamaModelsResponse(
-                models=[
-                    OllamaModel(
-                        name=m.get("name", ""),
-                        size=m.get("size", 0),
-                        digest=m.get("digest", ""),
-                        modified_at=m.get("modified_at", ""),
-                    )
-                    for m in data.get("models", [])
-                ]
-            )
-        except httpx.HTTPError as e:
-            raise HTTPException(status_code=503, detail=f"Ollama unavailable: {str(e)}")
+    """Список доступных моделей локального и облачного провайдера."""
+    try:
+        models = ModelRouter().get_provider().list_models()
+        return OllamaModelsResponse(
+            models=[
+                OllamaModel(
+                    name=m.get("name", ""),
+                    size=m.get("size", 0),
+                    digest=m.get("digest", ""),
+                    modified_at=m.get("modified_at", ""),
+                )
+                for m in models
+            ]
+        )
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=503, detail=f"Provider unavailable: {str(e)}")
 
 
 @router.post("/models/pull")

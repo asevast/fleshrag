@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
-from app.db.models import IndexedFile, AppSetting, Conversation, Message
+from app.db.models import IndexedFile, AppSetting, Conversation, Message, TokenLog
 from typing import Optional, List, Dict, Any
 
 
@@ -95,6 +95,32 @@ def set_setting(db: Session, key: str, value: str):
 def get_all_settings(db: Session) -> Dict[str, str]:
     settings = db.query(AppSetting).all()
     return {s.key: s.value for s in settings}
+
+
+def log_token_usage(
+    db: Session,
+    *,
+    provider: str,
+    model: str,
+    op_type: str,
+    input_tok: int = 0,
+    output_tok: int = 0,
+    cost_usd: float = 0.0,
+    session_id: Optional[str] = None,
+) -> TokenLog:
+    entry = TokenLog(
+        provider=provider,
+        model=model,
+        op_type=op_type,
+        input_tok=input_tok,
+        output_tok=output_tok,
+        cost_usd=cost_usd,
+        session_id=session_id,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
 
 
 # Conversation CRUD
