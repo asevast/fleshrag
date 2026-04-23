@@ -1,0 +1,415 @@
+# Instincts generated from https://github.com/asevast/fleshrag
+# Generated: 2026-04-23T19:45:01.509Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: fleshrag-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: fix
+
+## Evidence
+
+- 1 commits analyzed
+- Detected conventional commit pattern
+- Examples: fix: CUDA enablement + smoke tests + Qdrant API migration
+
+---
+id: fleshrag-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Commit Length
+
+## Action
+
+Write moderate-length commit messages (~57 characters)
+
+## Evidence
+
+- Average commit message length: 57 chars
+- Based on 1 commits
+
+---
+id: fleshrag-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: fleshrag-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: fleshrag-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Export Style
+
+## Action
+
+Prefer default exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: default
+
+---
+id: fleshrag-arch-type-based
+trigger: "when adding new code"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Arch Type Based
+
+## Action
+
+Place code in the appropriate type folder (components/, services/, utils/, etc.)
+
+## Evidence
+
+- Type-based module organization detected
+- Folders: 
+
+---
+id: fleshrag-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: fleshrag-test-types
+trigger: "when planning tests for a feature"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Test Types
+
+## Action
+
+Write unit, integration tests to match project standards
+
+## Evidence
+
+- Test types detected: unit, integration
+- Coverage config: no
+
+---
+id: fleshrag-instinct-camelcase-func
+trigger: "When creating a new Python function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Camelcase Func
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.functions
+
+---
+id: fleshrag-instinct-pascalcase-class
+trigger: "When defining a new Python class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Pascalcase Class
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.classes
+
+---
+id: fleshrag-instinct-screaming-const
+trigger: "When declaring a constant in Python"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Screaming Const
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for the constant name
+
+## Evidence
+
+- Pattern in namingConventions.constants
+
+---
+id: fleshrag-instinct-camelcase-file
+trigger: "When creating a new file"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Camelcase File
+
+## Action
+
+Name the file using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.files
+
+---
+id: fleshrag-instinct-relative-import
+trigger: "When importing modules in Python"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Relative Import
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern in importStyle
+
+---
+id: fleshrag-instinct-default-export
+trigger: "When exporting modules or components"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Default Export
+
+## Action
+
+Use default export style
+
+## Evidence
+
+- Pattern in exportStyle
+
+---
+id: fleshrag-instinct-test-file-pattern
+trigger: "When adding a new test file"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Test File Pattern
+
+## Action
+
+Name the file with a .test.ts suffix
+
+## Evidence
+
+- Pattern in testing.filePattern
+
+---
+id: fleshrag-instinct-test-types
+trigger: "When writing tests"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Test Types
+
+## Action
+
+Include both unit and integration tests as appropriate
+
+## Evidence
+
+- Pattern in testing.testTypes
+
+---
+id: fleshrag-instinct-no-coverage-config
+trigger: "When configuring tests"
+confidence: 0.6
+domain: testing
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct No Coverage Config
+
+## Action
+
+Do not add code coverage configuration unless explicitly required
+
+## Evidence
+
+- testing.coverageConfig is false
+
+---
+id: fleshrag-instinct-try-catch-errors
+trigger: "When handling errors in code"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Try Catch Errors
+
+## Action
+
+Use try-catch blocks for error handling
+
+## Evidence
+
+- Pattern in errorHandling.style
+
+---
+id: fleshrag-instinct-no-custom-error-class
+trigger: "When defining error handling logic"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct No Custom Error Class
+
+## Action
+
+Do not create custom error classes
+
+## Evidence
+
+- errorHandling.customErrorClasses is false
+
+---
+id: fleshrag-instinct-conventional-commit-fix
+trigger: "When committing a bug fix"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Conventional Commit Fix
+
+## Action
+
+Prefix the commit message with 'fix:' following conventional commit format
+
+## Evidence
+
+- Seen in commit: fix: CUDA enablement + smoke tests + Qdrant API migration
+- Pattern in commits.prefixes
+
+---
+id: fleshrag-instinct-commit-length
+trigger: "When writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Commit Length
+
+## Action
+
+Keep the commit message around 57 characters on average
+
+## Evidence
+
+- commits.averageLength is 57
+
