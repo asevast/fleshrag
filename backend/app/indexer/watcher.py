@@ -17,6 +17,7 @@ from app.indexer.parsers.markitdown import parse_markitdown
 from app.indexer.chunker import chunk_text
 from app.indexer.embedder import embed_and_upsert
 from app.indexer import bm25
+from app.models.router import ModelRouter
 
 # Инициализация BM25 индекса при загрузке
 bm25.get_bm25_index()
@@ -56,19 +57,19 @@ def should_ignore(file_path: str) -> bool:
     return False
 
 
-def index_directory(path: str):
+def index_directory(path: str, router: ModelRouter = None):
     for root, _, files in os.walk(path):
         for filename in files:
             file_path = os.path.join(root, filename)
             if should_ignore(file_path):
                 continue
             try:
-                index_single_file(file_path)
+                index_single_file(file_path, router=router)
             except Exception as e:
                 print(f"Error indexing {file_path}: {e}")
 
 
-def extract_text(file_path: str, ext: str) -> str:
+def extract_text(file_path: str, ext: str, router: ModelRouter = None) -> str:
     if ext in PDF_EXTS:
         return parse_pdf(file_path)
     elif ext == ".docx":
@@ -84,17 +85,21 @@ def extract_text(file_path: str, ext: str) -> str:
         chunks = parse_code(file_path)
         return "\n\n".join([c.get("code", "") for c in chunks])
     elif ext in AUDIO_EXTS:
-        return parse_audio(file_path)
+        if router:
+            return parse_audio(file_path, router)
+        return parse_audio(file_path)  # fallback для совместимости
     elif ext in IMAGE_EXTS:
         return parse_image(file_path)
     elif ext in VIDEO_EXTS:
-        return parse_video(file_path)
+        if router:
+            return parse_video(file_path, router)
+        return parse_video(file_path)  # fallback для совместимости
     else:
         # Fallback: markitdown для остальных форматов
         return parse_markitdown(file_path)
 
 
-def index_single_file(file_path: str, db: Session = None):
+def index_single_file(file_path: str, db: Session = None, router: ModelRouter = None):
     """Индексирует один файл. Удаляет старые чанки при переиндексации."""
     # Дополнительная проверка на игнорирование
     if should_ignore(file_path):
@@ -116,7 +121,7 @@ def index_single_file(file_path: str, db: Session = None):
         from app.indexer.embedder import delete_file_chunks
         delete_file_chunks(file_path)
 
-        text = extract_text(file_path, ext)
+        text = extract_text(file_path, ext, router)
 
         if text is None:
             text = ""

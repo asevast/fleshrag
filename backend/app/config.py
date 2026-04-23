@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     default_provider: str = "cloud"
     local_llm_model: str = "qwen2.5:3b"
-    local_embed_model: str = "nomic-embed-text"
+    local_embed_model: str = "multilingual-e5-large"
     local_rerank_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     cloud_llm_model: str = "gpt-oss-120b"
     cloud_llm_economy_model: str = "qwen3.6-35b-a3b"

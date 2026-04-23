@@ -61,7 +61,7 @@ def _get_language(name: str):
     return None
 
 
-def _get_parser(language: Language):
+def _get_parser(language):
     """Создать парсер для языка."""
     if not TREE_SITTER_AVAILABLE:
         return None
@@ -203,4 +203,4 @@ def parse_code_simple(path: str) -> str:
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
     except Exception:
-        return """
+        return ""

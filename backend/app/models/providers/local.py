@@ -9,6 +9,21 @@ from llama_index.llms.ollama import Ollama
 from app.config import settings
 from app.models.contracts import ProviderCapabilities
 
+# Кэш для faster-whisper модели
+_local_whisper_model = None
+
+
+def _get_whisper_model():
+    global _local_whisper_model
+    if _local_whisper_model is None:
+        from faster_whisper import WhisperModel
+        import torch
+        # Проверяем доступность CUDA
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        compute_type = "float16" if device == "cuda" else "int8"
+        _local_whisper_model = WhisperModel("base", device=device, compute_type=compute_type)
+    return _local_whisper_model
+
 
 class LocalProvider:
     def __init__(
@@ -93,6 +108,18 @@ class LocalProvider:
 
     def rerank(self, query: str, documents: list[str]) -> list[float] | None:
         return None
+
+    def transcribe_audio(self, audio_path: str) -> str:
+        """Транскрибация аудио через faster-whisper base (local)."""
+        model = _get_whisper_model()
+        segments, _ = model.transcribe(
+            audio_path,
+            language="ru",
+            beam_size=3,
+            vad_filter=True,
+            vad_parameters={"min_silence_duration_ms": 500}
+        )
+        return " ".join(s.text.strip() for s in segments)
 
     def list_models(self) -> list[dict]:
         with httpx.Client() as client:

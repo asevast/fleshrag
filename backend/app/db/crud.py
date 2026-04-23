@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
-from app.db.models import IndexedFile, AppSetting, Conversation, Message, TokenLog
+from app.db.models import IndexedFile, AppSetting, Conversation, Message, TokenLog, IndexPath
 from typing import Optional, List, Dict, Any
 
 
@@ -167,3 +167,46 @@ def add_message(db: Session, conv_id: int, role: str, content: str, sources: Opt
 
 def get_messages(db: Session, conv_id: int) -> List[Message]:
     return db.query(Message).filter(Message.conversation_id == conv_id).order_by(Message.created_at.asc()).all()
+
+
+# IndexPath CRUD
+def get_index_paths(db: Session, active_only: bool = True) -> List[IndexPath]:
+    query = db.query(IndexPath)
+    if active_only:
+        query = query.filter(IndexPath.active == True)
+    return query.order_by(IndexPath.added_at.desc()).all()
+
+
+def add_index_path(db: Session, path: str) -> Optional[IndexPath]:
+    existing = db.query(IndexPath).filter(IndexPath.path == path).first()
+    if existing:
+        if not existing.active:
+            existing.active = True
+            existing.added_at = datetime.utcnow()
+            db.commit()
+            db.refresh(existing)
+        return existing
+    
+    index_path = IndexPath(path=path)
+    db.add(index_path)
+    db.commit()
+    db.refresh(index_path)
+    return index_path
+
+
+def remove_index_path(db: Session, path: str) -> bool:
+    index_path = db.query(IndexPath).filter(IndexPath.path == path).first()
+    if index_path:
+        db.delete(index_path)
+        db.commit()
+        return True
+    return False
+
+
+def deactivate_index_path(db: Session, path: str) -> bool:
+    index_path = db.query(IndexPath).filter(IndexPath.path == path).first()
+    if index_path:
+        index_path.active = False
+        db.commit()
+        return True
+    return False

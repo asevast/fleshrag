@@ -1,0 +1,45 @@
+`intfloat/multilingual-e5-large` через sentence-transformers** (лучший выбор)
+
+```python
+# backend/app/models/providers/local_embed.py
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer("intfloat/multilingual-e5-large")
+
+# Важно: e5-модели требуют префикс
+def embed(texts: list[str], is_query: bool = False) -> list[list[float]]:
+    prefix = "query: " if is_query else "passage: "
+    return model.encode([prefix + t for t in texts]).tolist()
+```
+
+Добавить в `docker-compose.yml` отдельный сервис:
+
+```yaml
+  embed-local:
+    build:
+      context: ./embed-service
+      dockerfile: Dockerfile
+    volumes:
+      - ./volumes/hf_models:/root/.cache/huggingface
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+```
+
+```dockerfile
+# embed-service/Dockerfile
+FROM python:3.12-slim
+RUN pip install sentence-transformers fastapi uvicorn --break-system-packages
+COPY server.py .
+CMD ["uvicorn", "server.py:app", "--host", "0.0.0.0", "--port", "8001"]
+```
+
+Обновить нужно только одну строку в Admin Console и в `ModelRouter`:
+
+```python
+"local": {
+    ...
+    "embed": "mxbai-embed-large",  # или "multilingual-e5-large" через embed-service
+    ...
+}
+```

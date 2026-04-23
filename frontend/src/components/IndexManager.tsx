@@ -27,6 +27,16 @@ interface LogEntry {
   message: string
 }
 
+// Очистка ANSI-escape кодов из текста
+const stripAnsiCodes = (text: string): string => {
+  return text.replace(/\x1b\[[0-9;]*[mK]/g, '')
+             .replace(/\x1b\[[0-9;]*[JHP]/g, '')
+             .replace(/\x1b\[[0-9;]*[ABCD]/g, '')
+             .replace(/\x1b\[[0-9;]*[fg]/g, '')
+             .replace(/\x1b\[[0-9;]*[HL]/g, '')
+             .replace(/\x1b\[[0-9;]*[SK]/g, '')
+}
+
 export default function IndexManager() {
   const [open, setOpen] = useState(false)
   const [stats, setStats] = useState<IndexStats | null>(null)
@@ -75,7 +85,7 @@ export default function IndexManager() {
     if (!newPath.trim()) return
     
     try {
-      const res = await fetch('/api/index/add-path', {
+      const res = await fetch('/api/index/paths', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: newPath.trim() })
@@ -97,19 +107,20 @@ export default function IndexManager() {
 
   const handleRemovePath = async (path: string) => {
     try {
-      const res = await fetch('/api/index/remove-path', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path })
+      const res = await fetch(`/api/index/paths/${encodeURIComponent(path)}`, {
+        method: 'DELETE'
       })
       
       if (res.ok) {
         addLog(`Удалён путь: ${path}`, 'success')
         fetchPaths()
         fetchStatus()
+      } else {
+        const error = await res.json()
+        addLog(`Ошибка удаления пути: ${error.detail}`, 'error')
       }
     } catch (e: any) {
-      addLog(`Ошибка удаления пути: ${e.message}`, 'error')
+      addLog(`Ошибка: ${e.message}`, 'error')
     }
   }
 
@@ -437,7 +448,7 @@ export default function IndexManager() {
                     <span className="text-sm">{getLogLevelIcon(log.level)}</span>
                     <div className="flex-1 min-w-0">
                       <div className={`${getLogLevelClasses(log.level)} font-medium`}>
-                        {log.message}
+                        {stripAnsiCodes(log.message)}
                       </div>
                       <div className="text-gray-400 text-xs mt-0.5">
                         {new Date(log.timestamp).toLocaleTimeString('ru-RU')}

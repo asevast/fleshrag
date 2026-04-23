@@ -68,18 +68,10 @@ export default function FilePreview({ path, filename, onClose }: Props) {
         <div className="flex items-center justify-between border-t border-[rgba(207,190,165,0.45)] px-5 py-3 text-xs text-[rgb(var(--muted))]">
           <span className="truncate">{path}</span>
           <a
-            href={`file:///${path}`}
+            href={`/api/files/download?path=${encodeURIComponent(path)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="ml-4 shrink-0 rounded-full border border-[rgba(207,190,165,0.7)] px-3 py-1.5 font-medium text-[rgb(var(--brand))] transition hover:bg-[rgba(199,89,48,0.08)]"
-            onClick={() => {
-              // file:// может не работать в браузере, пробуем открыть
-              try {
-                window.open(`file:///${path}`, '_blank')
-              } catch {
-                // fallback
-              }
-            }}
           >
             Открыть файл
           </a>

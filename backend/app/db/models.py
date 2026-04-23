@@ -33,6 +33,15 @@ class IndexedFile(Base):
     indexed_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
+class IndexPath(Base):
+    __tablename__ = "index_paths"
+
+    id = Column(Integer, primary_key=True, index=True)
+    path = Column(String, unique=True, nullable=False, index=True)
+    added_at = Column(DateTime, default=datetime.datetime.utcnow)
+    active = Column(Boolean, default=True)
+
+
 class AppSetting(Base):
     __tablename__ = "app_settings"
 

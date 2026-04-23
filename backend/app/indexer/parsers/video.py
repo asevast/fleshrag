@@ -1,94 +1,119 @@
 import os
+import subprocess
+import uuid
 import tempfile
-import av
-from PIL import Image as PILImage
+from pathlib import Path
+from typing import TYPE_CHECKING
 
-from app.indexer.parsers.audio import transcribe_audio
+if TYPE_CHECKING:
+    from app.models.router import ModelRouter
+
+from app.indexer.parsers.audio import to_wav, transcribe_audio
 from app.indexer.parsers.image import parse_images_batch
 
-
-def extract_audio_from_video(video_path: str) -> str:
-    container = av.open(video_path)
-    audio_stream = next((s for s in container.streams if s.type == "audio"), None)
-    if not audio_stream:
-        return ""
-
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        output = av.open(tmp.name, "w")
-        out_stream = output.add_stream("pcm_s16le", rate=16000)
-        out_stream.channels = 1
-
-        for packet in container.demux(audio_stream):
-            for frame in packet.decode():
-                frame.pts = None
-                frame.rate = 16000
-                frame = frame.resample(16000, "mono", "s16")
-                for packet in out_stream.encode(frame):
-                    output.mux(packet)
-
-        output.close()
-        container.close()
-        return tmp.name
+# Директория для временных файлов
+TMP_DIR = Path("/tmp/rag_video")
+TMP_DIR.mkdir(exist_ok=True)
 
 
-def extract_frames_from_video(video_path: str, fps: float = 1.0) -> list:
-    container = av.open(video_path)
-    video_stream = next((s for s in container.streams if s.type == "video"), None)
-    if not video_stream:
-        return []
+def extract_frames(video_path: str, fps: float = 1.0) -> list[str]:
+    """
+    Извлекает кадры из видео для визуального анализа (OCR).
+    Возвращает список путей к временным JPG файлам.
+    """
+    out_dir = TMP_DIR / f"frames_{uuid.uuid4()}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    subprocess.run(
+        [
+            "ffmpeg", "-i", video_path,
+            "-vf", f"fps={fps}",   # извлекать fps кадров в секунду
+            "-q:v", "3",            # качество JPEG (2-5 хорошее)
+            "-y",
+            "-loglevel", "error"
+        ] + [str(out_dir / "frame_%04d.jpg")],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    
+    return sorted(str(p) for p in out_dir.glob("*.jpg"))
 
-    frames = []
-    frame_interval = 1.0 / fps
-    last_time = -1.0
 
-    for packet in container.demux(video_stream):
-        for frame in packet.decode():
-            current_time = float(frame.pts * frame.time_base)
-            if current_time - last_time >= frame_interval:
-                last_time = current_time
-                img = frame.to_image()
-                frames.append(img)
-
-    container.close()
-    return frames
-
-
-def parse_video(path: str, max_frames_ocr: int = 5) -> str:
-    """Транскрибирует аудио + выполняет OCR на ключевых кадрах видео."""
+def process_media_file(file_path: str, router: "ModelRouter") -> str:
+    """
+    Полный пайплайн для любого медиафайла (аудио или видео):
+    1. Если видео → извлечь аудиодорожку + кадры
+    2. Ресемплировать аудио в 16kHz mono WAV
+    3. Транскрибировать (cloud whisper-1 / local faster-whisper)
+    4. Для кадров → OCR через EasyOCR
+    5. Удалить временные файлы
+    """
+    from app.indexer.parsers.video import extract_frames_from_video
+    
     lines = []
-
-    # 1. Аудио
-    audio_path = extract_audio_from_video(path)
-    if audio_path:
-        try:
-            transcript = transcribe_audio(audio_path, model_size="tiny")
+    temp_files = []
+    
+    try:
+        # Проверка типа файла
+        ext = Path(file_path).suffix.lower()
+        is_video = ext in {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm"}
+        
+        if is_video:
+            # 1. Аудиодорожка из видео
+            wav_path = to_wav(file_path)
+            temp_files.append(wav_path)
+            
+            # 2. Транскрибация аудио
+            transcript = transcribe_audio(wav_path, router)
             if transcript.strip():
                 lines.append("[Аудио-транскрипция]\n" + transcript)
-        finally:
-            os.unlink(audio_path)
-
-    # 2. OCR на кадрах (сэмплируем равномерно, не больше max_frames_ocr)
-    try:
-        frames = extract_frames_from_video(path, fps=0.2)  # 1 кадр в 5 сек
-        if frames:
-            # Сэмплируем кадры равномерно
-            if len(frames) > max_frames_ocr:
-                step = len(frames) // max_frames_ocr
-                frames = frames[::step][:max_frames_ocr]
-
-            with tempfile.TemporaryDirectory() as tmpdir:
-                frame_paths = []
-                for i, img in enumerate(frames):
-                    fp = os.path.join(tmpdir, f"frame_{i:03d}.png")
-                    img.save(fp)
-                    frame_paths.append(fp)
-
-                ocr_results = parse_images_batch(frame_paths)
+            
+            # 3. Извлечение кадров
+            frames = extract_frames_from_video(file_path, fps=0.2)  # 1 кадр в 5 сек
+            if frames:
+                # Сэмплируем не более 10 кадров равномерно
+                if len(frames) > 10:
+                    step = len(frames) // 10
+                    frames = frames[::step][:10]
+                
+                # OCR на кадрах
+                ocr_results = parse_images_batch(frames)
                 for i, ocr_text in enumerate(ocr_results):
                     if ocr_text.strip():
                         lines.append(f"\n[Кадр {i+1} OCR]\n" + ocr_text)
-    except Exception:
-        pass
+                
+                # Очистка кадров
+                for frame_path in frames:
+                    try:
+                        os.unlink(frame_path)
+                    except:
+                        pass
+        else:
+            # Просто аудиофайл
+            wav_path = to_wav(file_path)
+            temp_files.append(wav_path)
+            transcript = transcribe_audio(wav_path, router)
+            if transcript.strip():
+                lines.append("[Аудио-транскрипция]\n" + transcript)
+        
+        return "\n".join(lines)
+    
+    finally:
+        # Очистка временных файлов
+        for f in temp_files:
+            try:
+                os.unlink(f)
+            except:
+                pass
 
-    return "\n".join(lines)
 
+# Для обратной совместимости
+def parse_video(video_path: str, router: "ModelRouter", max_frames_ocr: int = 10) -> str:
+    """Устаревший интерфейс — используйте process_media_file."""
+    return process_media_file(video_path, router)
+
+
+def extract_frames_from_video(video_path: str, fps: float = 1.0) -> list[str]:
+    """Извлекает кадры из видео (обёртка над extract_frames)."""
+    return extract_frames(video_path, fps)
