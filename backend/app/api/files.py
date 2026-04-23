@@ -1,11 +1,11 @@
 import os
 import mimetypes
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.db.models import get_db
+from app.db.models import get_db, IndexedFile
 from app.db.crud import get_indexed_files, get_file_by_path, get_available_file_types
 
 router = APIRouter()
@@ -37,6 +37,20 @@ async def list_files(
 @router.get("/files/types")
 async def list_file_types(db: Session = Depends(get_db)):
     return get_available_file_types(db)
+
+
+@router.get("/files/download")
+async def download_file(path: str, db: Session = Depends(get_db)):
+    """Скачать файл по пути."""
+    # Проверяем, что файл есть в индексе
+    file_record = db.query(IndexedFile).filter(IndexedFile.path == path).first()
+    if not file_record:
+        raise HTTPException(status_code=404, detail="File not found in index")
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    return FileResponse(path, filename=file_record.filename)
 
 
 @router.get("/files/preview")

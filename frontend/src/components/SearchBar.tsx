@@ -57,38 +57,40 @@ export default function SearchBar({ onSearch, loading }: Props) {
   const hasFilters = fileTypes.length > 0 || dateAfter || dateBefore || pathContains
 
   return (
-    <div>
-      <form onSubmit={handleSubmit} className="flex gap-2 mb-2">
+    <div className="soft-card rounded-[28px] p-4 md:p-5">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 lg:flex-row">
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Введите запрос..."
-          className="flex-1 px-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Спросите о содержимом файлов, коде, заметках, документах..."
+          className="min-h-14 flex-1 rounded-2xl border border-[rgba(207,190,165,0.6)] bg-white/80 px-5 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))] focus:ring-4 focus:ring-[rgba(26,116,122,0.12)]"
         />
-        <button
-          type="button"
-          onClick={() => setShowFilters(!showFilters)}
-          className={`px-4 py-2 rounded border ${hasFilters ? 'bg-blue-100 border-blue-300' : 'bg-gray-100'}`}
-          title="Фильтры"
-        >
-          🔧
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? '...' : 'Искать'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${hasFilters ? 'border-[rgb(var(--accent))] bg-[rgba(26,116,122,0.1)] text-[rgb(var(--accent))]' : 'border-[rgba(207,190,165,0.6)] bg-white/70 text-[rgb(var(--muted))] hover:bg-white'}`}
+            title="Фильтры"
+          >
+            Filters
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-2xl bg-[rgb(var(--brand))] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[rgb(var(--brand-strong))] disabled:opacity-50"
+          >
+            {loading ? 'Поиск...' : 'Запустить'}
+          </button>
+        </div>
       </form>
 
       {showFilters && (
-        <div className="p-4 bg-gray-50 rounded border mb-4">
+        <div className="mt-4 rounded-[24px] border border-[rgba(207,190,165,0.55)] bg-[rgba(246,237,224,0.7)] p-4">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-semibold text-sm">Фильтры</h3>
             {hasFilters && (
-              <button onClick={clearFilters} className="text-xs text-blue-600 hover:underline">
+              <button onClick={clearFilters} className="text-xs text-[rgb(var(--brand))] hover:underline">
                 Сбросить
               </button>
             )}
@@ -105,8 +107,8 @@ export default function SearchBar({ onSearch, loading }: Props) {
                     onClick={() => toggleFileType(type)}
                     className={`px-2 py-1 text-xs rounded border ${
                       fileTypes.includes(type)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                        ? 'border-[rgb(var(--brand))] bg-[rgb(var(--brand))] text-white'
+                        : 'border-[rgba(207,190,165,0.7)] bg-white text-[rgb(var(--muted))] hover:bg-[rgba(255,255,255,0.92)]'
                     }`}
                   >
                     {type}
@@ -122,7 +124,7 @@ export default function SearchBar({ onSearch, loading }: Props) {
                   type="date"
                   value={dateAfter}
                   onChange={(e) => setDateAfter(e.target.value)}
-                  className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-[rgba(207,190,165,0.6)] bg-white px-3 py-2 text-sm outline-none focus:border-[rgb(var(--accent))]"
                 />
               </div>
               <div>
@@ -131,7 +133,7 @@ export default function SearchBar({ onSearch, loading }: Props) {
                   type="date"
                   value={dateBefore}
                   onChange={(e) => setDateBefore(e.target.value)}
-                  className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-[rgba(207,190,165,0.6)] bg-white px-3 py-2 text-sm outline-none focus:border-[rgb(var(--accent))]"
                 />
               </div>
             </div>
@@ -143,7 +145,7 @@ export default function SearchBar({ onSearch, loading }: Props) {
                 value={pathContains}
                 onChange={(e) => setPathContains(e.target.value)}
                 placeholder="/documents/"
-                className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-xl border border-[rgba(207,190,165,0.6)] bg-white px-3 py-2 text-sm outline-none focus:border-[rgb(var(--accent))]"
               />
             </div>
           </div>

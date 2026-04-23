@@ -1,16 +1,19 @@
-FROM python:3.12-slim
+FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 
 WORKDIR /app
 
-# Установка системных зависимостей
+# Установка системных зависимостей и Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 \
-    libglib2.0-0 \
+    python3.12 \
+    python3.12-venv \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Создание виртуального окружения
+RUN python3.12 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 # Установка CUDA-версии PyTorch и sentence-transformers
-# PyTorch с CUDA 12.1 для совместимости с драйвером NVIDIA
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
     torch==2.5.0 --index-url https://download.pytorch.org/whl/cu121 && \

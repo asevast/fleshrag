@@ -52,7 +52,6 @@ async def ask(req: AskRequest):
                     "X-Accel-Buffering": "no",
                 },
             )
-        answer = await ask_query(req.query, top_k=req.top_k, filters=req.filters)
-        return {"answer": answer}
+        return await ask_query(req.query, top_k=req.top_k, filters=req.filters)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

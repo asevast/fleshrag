@@ -2,6 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+@layer base {
+  :root {
+    color-scheme: light;
+    --bg: 245 241 232;
+    --surface: 255 251 244;
+    --surface-2: 246 237 224;
+    --line: 207 190 165;
+    --text: 38 31 24;
+    --muted: 112 94 75;
+    --brand: 199 89 48;
+    --brand-strong: 145 58 28;
+    --accent: 26 116 122;
+    --success: 50 122 88;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    min-height: 100vh;
+    color: rgb(var(--text));
+    background:
+      radial-gradient(circle at top left, rgba(199, 89, 48, 0.18), transparent 28%),
+      radial-gradient(circle at top right, rgba(26, 116, 122, 0.14), transparent 22%),
+      linear-gradient(180deg, rgba(255, 251, 244, 1) 0%, rgba(245, 241, 232, 1) 100%);
+    font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply min-h-screen px-4 py-6 md:px-6 lg:px-8;
+  }
+
+  .glass-panel {
+    background: rgba(255, 251, 244, 0.82);
+    border: 1px solid rgba(var(--line), 0.45);
+    box-shadow: 0 18px 60px rgba(71, 48, 32, 0.12);
+    backdrop-filter: blur(18px);
+  }
+
+  .soft-card {
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(var(--line), 0.35);
+    box-shadow: 0 12px 30px rgba(83, 56, 40, 0.08);
+  }
 }

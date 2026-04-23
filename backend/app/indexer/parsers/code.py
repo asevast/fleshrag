@@ -61,7 +61,7 @@ def _get_language(name: str):
     return None
 
 
-def _get_parser(language: Language):
+def _get_parser(language):
     """Создать парсер для языка."""
     if not TREE_SITTER_AVAILABLE:
         return None
