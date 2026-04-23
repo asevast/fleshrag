@@ -1,6 +1,9 @@
 import os
 import hashlib
 from datetime import datetime
+from typing import Optional
+
+from sqlalchemy.orm import Session
 
 from app.db.models import SessionLocal
 from app.db.crud import create_or_update_file, get_file_by_path
@@ -88,7 +91,7 @@ def extract_text(file_path: str, ext: str) -> str:
         return parse_markitdown(file_path)
 
 
-def index_single_file(file_path: str, db: Session = None):
+def index_single_file(file_path: str, db: Optional[Session] = None):
     """Индексирует один файл. Удаляет старые чанки при переиндексации."""
     own_session = db is None
     if own_session:

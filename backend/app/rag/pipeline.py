@@ -87,15 +87,16 @@ async def search_query(query: str, top_k: int = None, filters: Optional[dict] = 
     
     qdrant_filter = _build_qdrant_filter(filters)
     
-    # 1. Dense поиск (векторы)
+    # 1. Dense поиск (векторы) - новый API Qdrant
     embedding = embedder.get_text_embedding(query)
-    dense_results = qdrant.search(
+    search_result = qdrant.query_points(
         collection_name=COLLECTION_NAME,
-        query_vector=embedding,
+        query=embedding,
         limit=top_k * 2,  # Берём больше для fusion
         query_filter=qdrant_filter,
         with_payload=True,
     )
+    dense_results = search_result.points if hasattr(search_result, 'points') else []
     
     # 2. BM25 поиск (текст)
     bm25_results = []
