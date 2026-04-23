@@ -192,4 +192,17 @@ async def get_models_catalog(db: Session = Depends(get_db)):
     except httpx.HTTPError:
         catalog["local"]["llm"] = [settings.local_llm_model]
         catalog["local"]["embed"] = [settings.local_embed_model]
+    
+    # Добавляем multilingual-e5-large через embed-service в локальные embed модели
+    # Используем полное имя контейнера для Docker DNS
+    async with httpx.AsyncClient() as client:
+        for url in ["http://fleshrag-embed-service-1:8001/health", "http://embed-service:8001/health"]:
+            try:
+                resp = await client.get(url, timeout=3.0)
+                if resp.status_code == 200:
+                    if "multilingual-e5-large" not in catalog["local"]["embed"]:
+                        catalog["local"]["embed"].append("multilingual-e5-large")
+                    break
+            except (httpx.HTTPError, httpx.ConnectError, httpx.TimeoutException):
+                continue
     return catalog

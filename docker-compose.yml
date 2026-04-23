@@ -44,6 +44,20 @@ services:
       retries: 10
     restart: unless-stopped
 
+  embed-service:
+    build: ./embed-service
+    volumes:
+      - ./volumes/hf_models:/root/.cache/huggingface
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   backend:
     build: ./backend
     env_file:
@@ -51,14 +65,15 @@ services:
     volumes:
       - ./backend:/app
       - ./volumes/sqlite_data:/app/data
-      - ${INDEX_ROOT_HOST:-./test_data}:${INDEX_ROOT_CONTAINER:-/mnt/indexed}:ro
+      - /mnt/d:/mnt/d:ro
+      - /mnt:/mnt:ro
     environment:
       OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
       NEURALDEEP_BASE_URL: ${NEURALDEEP_BASE_URL:-https://api.neuraldeep.ru/v1}
       NEURALDEEP_API_KEY: ${NEURALDEEP_API_KEY:-}
       DEFAULT_PROVIDER: ${DEFAULT_PROVIDER:-cloud}
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-qwen2.5:3b}
-      LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-nomic-embed-text}
+      LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-multilingual-e5-large}
       CLOUD_LLM_MODEL: ${CLOUD_LLM_MODEL:-gpt-oss-120b}
       CLOUD_LLM_ECONOMY_MODEL: ${CLOUD_LLM_ECONOMY_MODEL:-qwen3.6-35b-a3b}
       CLOUD_EMBED_MODEL: ${CLOUD_EMBED_MODEL:-e5-large}
@@ -68,7 +83,7 @@ services:
       QDRANT_PORT: ${QDRANT_PORT:-6333}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/metadata.db}
-      INDEX_PATHS: ${INDEX_PATHS:-/mnt/indexed}
+      INDEX_PATHS: ${INDEX_PATHS:-/mnt/d}
       CHUNK_SIZE: ${CHUNK_SIZE:-512}
       CHUNK_OVERLAP: ${CHUNK_OVERLAP:-64}
       TOP_K_SEARCH: ${TOP_K_SEARCH:-20}
@@ -79,8 +94,6 @@ services:
       - "8000:8000"
     depends_on:
       ollama:
-        condition: service_healthy
-      qdrant:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -94,14 +107,15 @@ services:
     volumes:
       - ./backend:/app
       - ./volumes/sqlite_data:/app/data
-      - ${INDEX_ROOT_HOST:-./test_data}:${INDEX_ROOT_CONTAINER:-/mnt/indexed}:ro
+      - /mnt/d:/mnt/d:ro
+      - /mnt:/mnt:ro
     environment:
       OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
       NEURALDEEP_BASE_URL: ${NEURALDEEP_BASE_URL:-https://api.neuraldeep.ru/v1}
       NEURALDEEP_API_KEY: ${NEURALDEEP_API_KEY:-}
       DEFAULT_PROVIDER: ${DEFAULT_PROVIDER:-cloud}
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-qwen2.5:3b}
-      LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-nomic-embed-text}
+      LOCAL_EMBED_MODEL: ${LOCAL_EMBED_MODEL:-multilingual-e5-large}
       CLOUD_LLM_MODEL: ${CLOUD_LLM_MODEL:-gpt-oss-120b}
       CLOUD_LLM_ECONOMY_MODEL: ${CLOUD_LLM_ECONOMY_MODEL:-qwen3.6-35b-a3b}
       CLOUD_EMBED_MODEL: ${CLOUD_EMBED_MODEL:-e5-large}
@@ -111,7 +125,7 @@ services:
       QDRANT_PORT: ${QDRANT_PORT:-6333}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/metadata.db}
-      INDEX_PATHS: ${INDEX_PATHS:-/mnt/indexed}
+      INDEX_PATHS: ${INDEX_PATHS:-/mnt/d}
       CHUNK_SIZE: ${CHUNK_SIZE:-512}
       CHUNK_OVERLAP: ${CHUNK_OVERLAP:-64}
       TOP_K_SEARCH: ${TOP_K_SEARCH:-20}
@@ -120,8 +134,6 @@ services:
       LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-1000}
     depends_on:
       ollama:
-        condition: service_healthy
-      qdrant:
         condition: service_healthy
       redis:
         condition: service_healthy

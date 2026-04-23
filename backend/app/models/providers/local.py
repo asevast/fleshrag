@@ -20,7 +20,12 @@ class LocalProvider:
         temperature: float,
         max_tokens: int,
     ):
-        self.embedder = OllamaEmbedding(model_name=embed_model, base_url=settings.ollama_host)
+        self.embed_model = embed_model
+        # Для multilingual-e5-large не используем OllamaEmbedding, он будет через embed-service
+        if "multilingual-e5-large" not in embed_model:
+            self.embedder = OllamaEmbedding(model_name=embed_model, base_url=settings.ollama_host)
+        else:
+            self.embedder = None
         self.llm = Ollama(model=llm_model, base_url=settings.ollama_host, request_timeout=120.0)
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -33,9 +38,28 @@ class LocalProvider:
         )
 
     def embed_text(self, text: str) -> list[float]:
-        return self.embedder.get_text_embedding(text)
+        return self.embed_texts([text])[0]
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        # multilingual-e5-large использует embed-service, остальные — Ollama
+        if "multilingual-e5-large" in self.embed_model:
+            return self._embed_via_service(texts)
+        return self._embed_via_ollama(texts)
+    
+    def _embed_via_service(self, texts: list[str]) -> list[list[float]]:
+        try:
+            with httpx.Client() as client:
+                response = client.post(
+                    "http://embed_service:8001/embed",
+                    json={"texts": texts, "is_query": False},
+                    timeout=60.0,
+                )
+                response.raise_for_status()
+                return response.json()["embeddings"]
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"embed-service unavailable for multilingual-e5-large: {e}") from e
+    
+    def _embed_via_ollama(self, texts: list[str]) -> list[list[float]]:
         return self.embedder.get_text_embedding_batch(texts)
 
     def complete(

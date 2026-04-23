@@ -1,6 +1,9 @@
 import os
 import hashlib
 from datetime import datetime
+from typing import Optional
+
+from sqlalchemy.orm import Session
 
 from app.db.models import SessionLocal
 from app.db.crud import create_or_update_file, get_file_by_path
@@ -19,8 +22,8 @@ from app.indexer import bm25
 bm25.get_bm25_index()
 
 
-IGNORE_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", ".idea", ".vscode", "dist", "build", ".pytest_cache", ".mypy_cache"}
-IGNORE_EXTS = {"", ".exe", ".dll", ".bin", ".iso", ".img", ".tmp", ".lock", ".log", ".db", ".sqlite", ".sqlite3", ".pyc", ".pyo", ".so", ".dylib"}
+IGNORE_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", ".idea", ".vscode", "dist", "build", ".pytest_cache", ".mypy_cache", "$RECYCLE.BIN", "System Volume Information", "$WINDOWS.~BT", "$WINDOWS.~WS"}
+IGNORE_EXTS = {"", ".exe", ".dll", ".bin", ".iso", ".img", ".tmp", ".lock", ".log", ".db", ".sqlite", ".sqlite3", ".pyc", ".pyo", ".so", ".dylib", ".parts", ".wc", ".torrent", ".!ut", ".ini", ".dmg", ".deb", ".dat"}
 
 # Статические расширения по типам
 TEXT_EXTS = {".txt", ".md", ".json", ".yaml", ".yml", ".csv", ".html", ".htm", ".xml", ".css", ".scss", ".less", ".sh", ".bat", ".ps1", ".sql", ".dockerfile", ".ini", ".cfg", ".toml", ".env", ".gitignore", ".gitattributes"}
@@ -41,9 +44,12 @@ def file_hash(path: str) -> str:
 
 
 def should_ignore(file_path: str) -> bool:
-    parts = file_path.split(os.sep)
-    if any(ignored in parts for ignored in IGNORE_DIRS):
-        return True
+    # Проверка на наличие игнорируемых директорий в любом месте пути
+    path_lower = file_path.lower()
+    for ignored in IGNORE_DIRS:
+        if ignored.lower() in path_lower:
+            return True
+    # Проверка расширения
     ext = os.path.splitext(file_path)[1].lower()
     if ext in IGNORE_EXTS:
         return True
@@ -90,6 +96,10 @@ def extract_text(file_path: str, ext: str) -> str:
 
 def index_single_file(file_path: str, db: Session = None):
     """Индексирует один файл. Удаляет старые чанки при переиндексации."""
+    # Дополнительная проверка на игнорирование
+    if should_ignore(file_path):
+        return
+    
     own_session = db is None
     if own_session:
         db = SessionLocal()
