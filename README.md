@@ -109,6 +109,30 @@ docker compose up --build
 - индексируется ли путь из `INDEX_PATHS`
 - есть ли файлы внутри `INDEX_ROOT_HOST`
 
+## Медиа-файлы (аудио/видео)
+
+Система поддерживает индексацию аудио и видео файлов:
+
+### Поддерживаемые форматы
+- **Аудио**: `.mp3`, `.wav`, `.flac`, `.aac`, `.ogg`, `.m4a`, `.wma`, `.opus`
+- **Видео**: `.mp4`, `.avi`, `.mkv`, `.mov`, `.wmv`, `.flv`, `.webm`, `.m4v`
+
+### Как это работает (ffmpeg-пайплайн)
+
+1. **Ресемплинг**: ffmpeg конвертирует аудио в 16 kHz mono WAV
+2. **Транскрибация**:
+   - **Cloud**: `whisper-1` через neuraldeep.ru ($0.003/мин)
+   - **Local**: `faster-whisper base` (INT8, ~350 MB RAM)
+3. **Для видео**: дополнительно извлекаются кадры (1/5 сек) с OCR
+
+```
+Видео/Аудио → ffmpeg (16kHz mono WAV) → Whisper → текст → Qdrant
+```
+
+### Требования
+- `ffmpeg` установлен в контейнере backend (автоматически при сборке)
+- В local режиме модель `faster-whisper base` загружается при первой транскрибации
+
 ## Полезные команды
 
 ```bash
@@ -118,4 +142,38 @@ docker compose logs backend
 docker compose logs worker
 docker compose logs ollama
 python tests/smoke_tests.py
+
+# Проверка CUDA поддержки
+./scripts/check-cuda.sh
 ```
+
+## CUDA / GPU ускорение
+
+Система автоматически использует GPU для следующих компонентов:
+- **PyTorch** (faster-whisper, sentence-transformers) — CUDA 12.1
+- **EasyOCR** — GPU ускорение для OCR
+- **faster-whisper** — транскрибация аудио/видео
+- **sentence-transformers** — эмбеддинги
+
+### Требования для GPU
+
+1. **NVIDIA драйверы** установлены на хосте
+2. **NVIDIA Container Toolkit** установлен:
+   ```bash
+   # Ubuntu/Debian
+   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit.gpg
+   curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+   sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+   sudo nvidia-ctk runtime configure --runtime=docker
+   sudo systemctl restart docker
+   ```
+
+3. **Проверка GPU**:
+   ```bash
+   ./scripts/check-cuda.sh
+   ```
+
+### Отключение GPU
+
+Если GPU не нужен или недоступен, сервисы автоматически fallback на CPU.
+Для принудительного отключения GPU удалите секцию `deploy.resources` из `docker-compose.yml` для сервисов `backend`, `worker` и `embed-service`.

@@ -1,4 +1,5 @@
 import easyocr
+import torch
 
 _reader = None
 
@@ -6,8 +7,13 @@ _reader = None
 def _get_reader():
     global _reader
     if _reader is None:
-        # detail=0 не применяется к Reader, используем detail=0 в readtext
-        _reader = easyocr.Reader(["ru", "en"], gpu=False, verbose=False)
+        # Автоматическое определение GPU для EasyOCR
+        gpu_available = torch.cuda.is_available()
+        _reader = easyocr.Reader(["ru", "en"], gpu=gpu_available, verbose=False)
+        if gpu_available:
+            print(f"EasyOCR using GPU: {torch.cuda.get_device_name(0)}")
+        else:
+            print("EasyOCR using CPU (no CUDA available)")
     return _reader
 
 
