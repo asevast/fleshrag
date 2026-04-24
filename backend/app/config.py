@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     default_provider: str = "cloud"
 
     local_llm_model: str = "qwen2.5:3b"
-    local_embed_model: str = "multilingual-e5-large"
+    local_embed_model: str = "nomic-embed-text"
     local_rerank_model: str | None = None
 
     cloud_llm_model: str = "gpt-oss-120b"
