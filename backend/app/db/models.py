@@ -22,12 +22,14 @@ class IndexedFile(Base):
     __tablename__ = "indexed_files"
 
     id = Column(Integer, primary_key=True, index=True)
-    path = Column(String, unique=True, nullable=False, index=True)
+    path = Column(String, unique=True, index=True)
     filename = Column(String, nullable=False, index=True)
-    file_hash = Column(String, nullable=False)
+    file_hash = Column(String, nullable=False)  # MD5 от содержимого файла
     file_type = Column(String, nullable=False)
     mtime = Column(DateTime, nullable=False)
+    size_bytes = Column(Integer, default=0)  # Размер файла в байтах
     chunk_count = Column(Integer, default=0)
+    content_hash = Column(String, nullable=True)  # SHA256 fingerprint для идемпотентности
     status = Column(String, default="pending")  # pending, indexed, error, empty
     error_message = Column(Text, nullable=True)
     indexed_at = Column(DateTime, default=datetime.datetime.utcnow)

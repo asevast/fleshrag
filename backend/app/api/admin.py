@@ -58,7 +58,8 @@ async def update_admin_settings(payload: dict, db: Session = Depends(get_db)):
 
 @router.get("/admin/status")
 async def get_admin_status(db: Session = Depends(get_db)):
-    provider = ModelRouter(db).get_provider()
+    router_instance = ModelRouter(db)
+    provider = router_instance.get_provider()
     stats = crud.get_index_stats(db)
     return {
         "provider": provider.capabilities.provider,
@@ -77,6 +78,7 @@ async def get_admin_status(db: Session = Depends(get_db)):
             {"name": "redis", "status": "running", "detail": settings.redis_url},
             {"name": "provider", "status": "running", "detail": provider.capabilities.provider},
         ],
+        "circuit_breaker": router_instance.circuit_breaker.get_status(),
         "timestamp": datetime.utcnow().isoformat(),
     }
 

@@ -70,7 +70,22 @@ def _build_qdrant_filter(filters: Optional[dict] = None) -> Optional[qdrant_mode
 
 
 def _current_provider():
+    """Возвращает текущего провайдера с учётом circuit breaker."""
     return router.get_provider()
+
+
+def _record_provider_success():
+    """Записывает успех cloud provider."""
+    current = router.get_provider()
+    if current.capabilities.provider == "cloud":
+        router.record_cloud_success()
+
+
+def _record_provider_failure():
+    """Записывает ошибку cloud provider."""
+    current = router.get_provider()
+    if current.capabilities.provider == "cloud":
+        router.record_cloud_failure()
 
 
 async def search_query(
@@ -251,22 +266,27 @@ def _build_prompt(context: str, query: str) -> str:
 
 
 async def ask_query(query: str, top_k: int = None, filters: Optional[dict] = None) -> Dict[str, Any]:
-    context, sources = await _build_rag_context(query, top_k=top_k)
-    prompt = _build_prompt(context, query)
-    answer = _current_provider().complete(prompt)
-    return {
-        "answer": answer,
-        "sources": [
-            {
-                "path": item["path"],
-                "filename": item["filename"],
-                "snippet": item["snippet"],
-                "score": item["score"],
-                "rerank_score": item.get("rerank_score"),
-            }
-            for item in sources
-        ],
-    }
+    try:
+        context, sources = await _build_rag_context(query, top_k=top_k)
+        prompt = _build_prompt(context, query)
+        answer = _current_provider().complete(prompt)
+        _record_provider_success()
+        return {
+            "answer": answer,
+            "sources": [
+                {
+                    "path": item["path"],
+                    "filename": item["filename"],
+                    "snippet": item["snippet"],
+                    "score": item["score"],
+                    "rerank_score": item.get("rerank_score"),
+                }
+                for item in sources
+            ],
+        }
+    except Exception as e:
+        _record_provider_failure()
+        raise
 
 
 async def ask_query_stream(
@@ -294,10 +314,20 @@ async def ask_query_stream(
         }
         yield f"data: {json.dumps(sources_payload, ensure_ascii=False)}\n\n"
 
+        token_count = 0
         for token in _current_provider().stream_complete(prompt):
+            token_count += 1
             payload = {"type": "token", "content": token}
             yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
+        # Успешный стриминг завершён
+        _record_provider_success()
+        yield "data: [DONE]\n\n"
+
+    except Exception as exc:
+        _record_provider_failure()
+        error_payload = {"type": "error", "message": str(exc)}
+        yield f"data: {json.dumps(error_payload, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
     except Exception as exc:
         error_payload = {"type": "error", "message": str(exc)}

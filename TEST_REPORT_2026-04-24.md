@@ -9,11 +9,11 @@
 
 ## 📊 Результаты
 
-| Статус | Количество | Процент |
+|Статус|Количество|Процент|
 |--------|------------|---------|
-| ✅ Прошли | 27 | 100% |
-| ❌ Упали | 0 | 0% |
-| ⏭️ Пропущены | 2 | (textarea selectors) |
+|✅ Прошли|27|100%|
+|❌ Упали|0|0%|
+|⏭️ Пропущены|2|(textarea selectors)|
 
 **Время выполнения:** 2.3 минуты
 
@@ -22,73 +22,79 @@
 ## ✅ Протестированные сценарии
 
 ### 1. Базовая функциональность (8 тестов)
-| № | Тест | Статус |
+
+|№|Тест|Статус|
 |---|------|--------|
-| 1 | Homepage loads with correct title | ✅ |
-| 2 | Displays all navigation tabs | ✅ |
-| 3 | Search tab is active by default | ✅ |
-| 4 | Search bar is visible and editable | ✅ |
-| 5 | Can switch to Ask tab | ✅ |
-| 6 | Can switch to Library tab | ✅ |
-| 7 | Can switch to Admin tab | ✅ |
-| 8 | Health check via API | ✅ |
-| 9 | Dialogs tab shows conversation interface | ✅ |
+|1|Homepage loads with correct title|✅|
+|2|Displays all navigation tabs|✅|
+|3|Search tab is active by default|✅|
+|4|Search bar is visible and editable|✅|
+|5|Can switch to Ask tab|✅|
+|6|Can switch to Library tab|✅|
+|7|Can switch to Admin tab|✅|
+|8|Health check via API|✅|
+|9|Dialogs tab shows conversation interface|✅|
 
 ### 2. Search API (3 теста)
-| № | Тест | Статус |
+
+|№|Тест|Статус|
 |---|------|--------|
-| 1 | Search API handles embed-service error | ✅ |
-| 2 | Search via UI handles errors | ✅ |
-| 3 | Search handles empty query | ✅ |
+|1|Search API handles embed-service error|✅|
+|2|Search via UI handles errors|✅|
+|3|Search handles empty query|✅|
 
 **Вывод:** Backend корректно обрабатывает ошибки embed-service, UI показывает empty state.
 
 ---
 
 ### 3. Ask Mode / RAG (1 тест)
-| № | Тест | Статус |
+
+|№|Тест|Статус|
 |---|------|--------|
-| 1 | Ask mode API handles embed error | ✅ |
-| ~ | Ask mode UI accepts question | ⏭️ (skip) |
-| ~ | Ask mode UI remains responsive | ⏭️ (skip) |
+|1|Ask mode API handles embed error|✅|
+|~|Ask mode UI accepts question|⏭️ (skip)|
+|~|Ask mode UI remains responsive|⏭️ (skip)|
 
 **Вывод:** API возвращает ошибки корректно. UI-тесты требуют уточнения селекторов textarea.
 
 ---
 
 ### 4. Dialogs / Conversations (4 теста)
-| № | Тест | Статус |
+
+|№|Тест|Статус|
 |---|------|--------|
-| 1 | Create new conversation via API | ✅ |
-| 2 | Send message in conversation | ✅ |
-| 3 | Conversation history UI is visible | ✅ |
-| 4 | Delete conversation via API | ✅ |
+|1|Create new conversation via API|✅|
+|2|Send message in conversation|✅|
+|3|Conversation history UI is visible|✅|
+|4|Delete conversation via API|✅|
 
 **Вывод:** CRUD операции с диалогами работают, UI отображает список.
 
 ---
 
 ### 5. File Preview / Library (4 теста)
-| № | Тест | Статус |
+
+|№|Тест|Статус|
 |---|------|--------|
-| 1 | File preview API handles missing file | ✅ |
-| 2 | File browser displays indexed files | ✅ |
-| 3 | File preview modal opens on click | ✅ |
-| 4 | File type filter works | ✅ |
+|1|File preview API handles missing file|✅|
+|2|File browser displays indexed files|✅|
+|3|File preview modal opens on click|✅|
+|4|File type filter works|✅|
 
 **Вывод:** Браузер файлов работает, фильтрация по типу работает, модальное превью открывается.
 
 ---
 
 ### 6. Admin Panel (6 тестов)
-| № | Тест | Статус |
+
+|№|Тест|Статус|
 |---|------|--------|
-| 1 | Admin panel shows all sections | ✅ |
-| 2 | Admin panel shows index stats | ✅ |
-| 3 | Admin panel refresh works | ✅ |
-| 4 | Admin panel test connection | ✅ |
-| 5 | Admin panel reindex button exists | ✅ |
-| 6 | Admin panel provider switch exists | ✅ |
+|1|Admin panel shows all sections|✅|
+|2|Admin panel shows index stats|✅|
+|3|Admin panel refresh works|✅|
+|4|Admin panel test connection|✅|
+|5|Admin panel reindex button exists|✅|
+|6|Admin panel provider switch exists|✅|
 
 **Вывод:** Все секции админки отображаются, кнопки работают, refresh обновляет данные.
 
@@ -119,6 +125,7 @@
 ### 3. Dialogs — CRUD операции
 
 **Проверка:**
+
 - Создание диалога через API ✅
 - Отправка сообщений ✅
 - Отображение списка диалогов ✅
@@ -131,6 +138,7 @@
 ### 4. File Preview — Модальное превью
 
 **Проверка:**
+
 - API возвращает 404 для несуществующих файлов ✅
 - FileBrowser отображает файлы ✅
 - Клик открывает модальное окно ✅
@@ -143,6 +151,7 @@
 ### 5. Admin Panel — Мониторинг системы
 
 **Проверка:**
+
 - Все секции видны (Budget, Models, Services, Index) ✅
 - Index stats показывают числа ✅
 - Кнопка Refresh обновляет данные ✅
@@ -269,23 +278,23 @@
 
 ## 🛠️ Использованные технологии
 
-| Компонент | Версия |
+|Компонент|Версия|
 |-----------|--------|
-| Playwright Test | Latest |
-| Chromium | Latest |
-| Node.js | 25.0.0 |
-| MCP Browser Skill | mattnigh/browser |
+|Playwright Test|Latest|
+|Chromium|Latest|
+|Node.js|25.0.0|
+|MCP Browser Skill|mattnigh/browser|
 
 ---
 
 ## 📈 Метрики производительности
 
-| Метрика | Значение |
+|Метрика|Значение|
 |---------|----------|
-| Среднее время теста | 1.09s |
-| Минимальное время | 776ms |
-| Максимальное время | 1.2s |
-| Общее время | 12.0s |
+|Среднее время теста|1.09s|
+|Минимальное время|776ms|
+|Максимальное время|1.2s|
+|Общее время|12.0s|
 
 ---
 
@@ -346,21 +355,22 @@ npx playwright show-report
 
 ## 📊 Итоговая статистика
 
-| Раздел | Тестов | Прошли | Процент |
+|Раздел|Тестов|Прошли|Процент|
 |--------|--------|--------|---------|
-| Базовая функциональность | 9 | 9 | 100% |
-| Search API | 3 | 3 | 100% |
-| Ask Mode | 1 | 1 | 100% |
-| Dialogs | 4 | 4 | 100% |
-| File Preview | 4 | 4 | 100% |
-| Admin Panel | 6 | 6 | 100% |
-| **ИТОГО** | **27** | **27** | **100%** |
+|Базовая функциональность|9|9|100%|
+|Search API|3|3|100%|
+|Ask Mode|1|1|100%|
+|Dialogs|4|4|100%|
+|File Preview|4|4|100%|
+|Admin Panel|6|6|100%|
+|**ИТОГО**|**27**|**27**|**100%**|
 
 ---
 
 **Глубокое тестирование завершено успешно!** 🎉
 
 **Все 5 пунктов протестированы:**
+
 1. ✅ Search API — обработка ошибок
 2. ✅ Ask Mode — RAG pipeline
 3. ✅ Dialogs — CRUD операции

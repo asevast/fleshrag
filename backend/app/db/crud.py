@@ -9,10 +9,24 @@ def get_file_by_path(db: Session, path: str):
     return db.query(IndexedFile).filter(IndexedFile.path == path).first()
 
 
-def create_or_update_file(db: Session, path: str, filename: str, file_hash: str, file_type: str, mtime, chunk_count: int = 0, status: str = "pending", error_message: str = None):
+def create_or_update_file(
+    db: Session,
+    path: str,
+    filename: str,
+    file_hash: str,
+    file_type: str,
+    mtime,
+    size_bytes: int = 0,
+    content_hash: str = None,
+    chunk_count: int = 0,
+    status: str = "pending",
+    error_message: str = None,
+):
     file = get_file_by_path(db, path)
     if file:
         file.file_hash = file_hash
+        file.size_bytes = size_bytes
+        file.content_hash = content_hash
         file.mtime = mtime
         file.chunk_count = chunk_count
         file.status = status
@@ -24,6 +38,8 @@ def create_or_update_file(db: Session, path: str, filename: str, file_hash: str,
             file_hash=file_hash,
             file_type=file_type,
             mtime=mtime,
+            size_bytes=size_bytes,
+            content_hash=content_hash,
             chunk_count=chunk_count,
             status=status,
             error_message=error_message,
