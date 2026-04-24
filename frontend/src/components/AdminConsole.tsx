@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, BadgeDollarSign, Cpu, Database, Gauge, RefreshCw, ServerCog, Zap } from 'lucide-react'
+import { Activity, BadgeDollarSign, Cpu, Database, Gauge, RefreshCw, ServerCog, Shield, Zap } from 'lucide-react'
 
 interface AdminStatus {
   provider: string
@@ -24,6 +24,13 @@ interface AdminStatus {
     status: string
     detail: string
   }>
+  circuit_breaker: {
+    state: 'closed' | 'open' | 'half_open'
+    failure_count: number
+    fail_threshold: number
+    cooldown_seconds: number
+    time_until_retry: number
+  }
   timestamp: string
 }
 
@@ -291,6 +298,43 @@ export default function AdminConsole() {
                 <div className="font-medium text-[rgb(var(--success))]">Connection OK</div>
                 <div className="mt-1 text-[rgb(var(--muted))]">
                   {connection.provider} · {connection.latency_ms} ms
+                </div>
+              </div>
+            )}
+            {/* Circuit Breaker Status */}
+            {status?.circuit_breaker && (
+              <div className={`mt-4 rounded-2xl border p-4 text-sm ${
+                status.circuit_breaker.state === 'open'
+                  ? 'border-red-300 bg-red-50'
+                  : status.circuit_breaker.state === 'half_open'
+                  ? 'border-yellow-300 bg-yellow-50'
+                  : 'border-green-300 bg-green-50'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Shield className={`h-4 w-4 ${
+                    status.circuit_breaker.state === 'open'
+                      ? 'text-red-600'
+                      : status.circuit_breaker.state === 'half_open'
+                      ? 'text-yellow-600'
+                      : 'text-green-600'
+                  }`} />
+                  <span className="font-medium">Circuit Breaker</span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-[rgb(var(--muted))]">State: </span>
+                    <span className="font-medium capitalize">{status.circuit_breaker.state}</span>
+                  </div>
+                  <div>
+                    <span className="text-[rgb(var(--muted))]">Failures: </span>
+                    <span className="font-medium">{status.circuit_breaker.failure_count}/{status.circuit_breaker.fail_threshold}</span>
+                  </div>
+                  {status.circuit_breaker.time_until_retry > 0 && (
+                    <div className="col-span-2">
+                      <span className="text-[rgb(var(--muted))]">Retry in: </span>
+                      <span className="font-medium">{status.circuit_breaker.time_until_retry.toFixed(1)}s</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

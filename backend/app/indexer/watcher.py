@@ -36,11 +36,27 @@ PDF_EXTS = {".pdf"}
 
 
 def file_hash(path: str) -> str:
+    """Вычисляет MD5 хэш содержимого файла."""
     h = hashlib.md5()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def content_fingerprint(path: str, file_hash: str, mtime: datetime, size_bytes: int) -> str:
+    """
+    Вычисляет SHA256 fingerprint для идемпотентной индексации.
+    
+    Fingerprint включает:
+    - file_hash: MD5 содержимого
+    - mtime: время модификации
+    - size_bytes: размер файла
+    
+    Это гарантирует стабильность chunk_id при переиндексации.
+    """
+    content = f"{file_hash}_{mtime.timestamp()}_{size_bytes}"
+    return hashlib.sha256(content.encode()).hexdigest()
 
 
 def should_ignore(file_path: str) -> bool:
@@ -92,20 +108,29 @@ def extract_text(file_path: str, ext: str) -> str:
 
 
 def index_single_file(file_path: str, db: Optional[Session] = None):
-    """Индексирует один файл. Удаляет старые чанки при переиндексации."""
+    """Индексирует один файл. Идемпотентная индексация с fingerprint."""
     own_session = db is None
     if own_session:
         db = SessionLocal()
     try:
         ext = os.path.splitext(file_path)[1].lower()
         mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
+        size_bytes = os.path.getsize(file_path)
         fhash = file_hash(file_path)
 
-        existing = create_or_update_file(db, file_path, os.path.basename(file_path), fhash, ext, mtime)
-        if existing and existing.status == "indexed" and existing.file_hash == fhash:
-            return  # Файл не изменился — пропускаем
+        # Вычисляем fingerprint для идемпотентности
+        fingerprint = content_fingerprint(file_path, fhash, mtime, size_bytes)
 
-        # Удаляем старые чанки из Qdrant перед переиндексацией
+        existing = get_file_by_path(db, file_path)
+        
+        # Проверяем, нужно ли переиндексировать
+        if existing and existing.status == "indexed":
+            if existing.file_hash == fhash and existing.size_bytes == size_bytes:
+                # Файл не изменился — пропускаем
+                return
+        
+        # Для новых файлов или изменившихся — полная индексация
+        # Удаляем старые чанки из Qdrant
         from app.indexer.embedder import delete_file_chunks
         delete_file_chunks(file_path)
 
@@ -115,14 +140,27 @@ def index_single_file(file_path: str, db: Optional[Session] = None):
             text = ""
 
         if not text.strip():
-            create_or_update_file(db, file_path, os.path.basename(file_path), fhash, ext, mtime, status="empty")
+            create_or_update_file(
+                db, file_path, os.path.basename(file_path), fhash, ext, mtime,
+                size_bytes=size_bytes, content_hash=fingerprint, status="empty"
+            )
             return
 
         chunks = chunk_text(text)
-        embed_and_upsert(chunks, file_path, os.path.basename(file_path), ext)
-        create_or_update_file(db, file_path, os.path.basename(file_path), fhash, ext, mtime, chunk_count=len(chunks), status="indexed")
+        
+        # Передаём file_hash для генерации стабильных chunk_id
+        embed_and_upsert(chunks, file_path, os.path.basename(file_path), ext, fhash)
+        
+        create_or_update_file(
+            db, file_path, os.path.basename(file_path), fhash, ext, mtime,
+            size_bytes=size_bytes, content_hash=fingerprint, chunk_count=len(chunks), status="indexed"
+        )
     except Exception as e:
-        create_or_update_file(db, file_path, os.path.basename(file_path), "", ext, datetime.utcnow(), status="error", error_message=str(e))
+        create_or_update_file(
+            db, file_path, os.path.basename(file_path), "", ext, datetime.utcnow(),
+            size_bytes=size_bytes if 'size_bytes' in locals() else 0,
+            status="error", error_message=str(e)
+        )
         raise
     finally:
         if own_session:
