@@ -9,6 +9,13 @@ services:
       OLLAMA_KEEP_ALIVE: 5m
       OLLAMA_NUM_PARALLEL: 1
       OLLAMA_MAX_LOADED_MODELS: 1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 20s
@@ -25,6 +32,13 @@ services:
       - "6333:6333"
     environment:
       QDRANT__SERVICE__GRPC_PORT: 6334
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:6333/readyz || exit 1"]
       interval: 15s
@@ -69,8 +83,6 @@ services:
 
   backend:
     build: ./backend
-    env_file:
-      - .env
     volumes:
       - ./backend:/app
       - ./volumes/sqlite_data:/app/data
@@ -117,8 +129,6 @@ services:
 
   worker:
     build: ./backend
-    env_file:
-      - .env
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-2}
     volumes:
       - ./backend:/app

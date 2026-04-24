@@ -33,15 +33,6 @@ class IndexedFile(Base):
     indexed_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
-class IndexPath(Base):
-    __tablename__ = "index_paths"
-
-    id = Column(Integer, primary_key=True, index=True)
-    path = Column(String, unique=True, nullable=False, index=True)
-    added_at = Column(DateTime, default=datetime.datetime.utcnow)
-    active = Column(Boolean, default=True)
-
-
 class AppSetting(Base):
     __tablename__ = "app_settings"
 
@@ -49,20 +40,6 @@ class AppSetting(Base):
     key = Column(String, unique=True, nullable=False, index=True)
     value = Column(Text, nullable=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-
-
-class TokenLog(Base):
-    __tablename__ = "token_log"
-
-    id = Column(Integer, primary_key=True, index=True)
-    ts = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
-    provider = Column(String, nullable=False)
-    model = Column(String, nullable=False)
-    op_type = Column(String, nullable=False)
-    input_tok = Column(Integer, default=0)
-    output_tok = Column(Integer, default=0)
-    cost_usd = Column(Float, default=0.0)
-    session_id = Column(String, nullable=True)
 
 
 class Conversation(Base):

@@ -1,12 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 
 interface Settings {
-  active_provider: 'cloud' | 'local'
   llm_model: string
   embed_model: string
-  rerank_model?: string | null
-  llm_temperature: number
-  llm_max_tokens: number
   chunk_size: number
   chunk_overlap: number
   top_k_search: number
@@ -14,22 +10,24 @@ interface Settings {
   index_paths: string[]
 }
 
-interface ModelsCatalog {
-  active_provider: 'cloud' | 'local'
-  cloud: { llm: string[]; embed: string[]; rerank: string[] }
-  local: { llm: string[]; embed: string[]; rerank: string[] }
+interface OllamaModel {
+  name: string
+  size: number
+  digest: string
+  modified_at: string
 }
 
 export default function SettingsPanel() {
   const [open, setOpen] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [catalog, setCatalog] = useState<ModelsCatalog | null>(null)
+  const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([])
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/settings')
+      const res = await fetch('/api/settings')
       const data = await res.json()
       setSettings(data)
     } catch (e) {
@@ -39,11 +37,11 @@ export default function SettingsPanel() {
 
   const fetchModels = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/models/catalog')
+      const res = await fetch('/api/models')
       const data = await res.json()
-      setCatalog(data)
+      setOllamaModels(data.models || [])
     } catch (e) {
-      console.error('Failed to fetch model catalog:', e)
+      console.error('Failed to fetch Ollama models:', e)
     }
   }, [])
 
@@ -52,16 +50,12 @@ export default function SettingsPanel() {
     setSaving(true)
     setMessage(null)
     try {
-      const res = await fetch('/api/admin/settings', {
+      const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          active_provider: settings.active_provider,
           llm_model: settings.llm_model,
           embed_model: settings.embed_model,
-          rerank_model: settings.rerank_model,
-          llm_temperature: settings.llm_temperature,
-          llm_max_tokens: settings.llm_max_tokens,
           chunk_size: settings.chunk_size,
           chunk_overlap: settings.chunk_overlap,
           top_k_search: settings.top_k_search,
@@ -69,9 +63,7 @@ export default function SettingsPanel() {
         }),
       })
       if (!res.ok) throw new Error('Failed to save settings')
-      const updated = await res.json()
-      setSettings(updated)
-      setMessage({ type: 'success', text: 'Настройки сохранены и применены для новых запросов' })
+      setMessage({ type: 'success', text: 'Настройки сохранены (требуется перезапуск для применения)' })
     } catch (e: any) {
       setMessage({ type: 'error', text: e.message })
     } finally {
@@ -85,8 +77,6 @@ export default function SettingsPanel() {
       fetchModels()
     }
   }, [open, fetchSettings, fetchModels])
-
-  const activeModels = settings && catalog ? catalog[settings.active_provider] : null
 
   if (!open) {
     return (
@@ -116,38 +106,17 @@ export default function SettingsPanel() {
 
       <div className="space-y-4">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Провайдер</label>
-          <div className="grid grid-cols-2 gap-2">
-            {(['cloud', 'local'] as const).map((provider) => (
-              <button
-                key={provider}
-                onClick={() => setSettings((s) => s ? {
-                  ...s,
-                  active_provider: provider,
-                  llm_model: catalog?.[provider].llm[0] || s.llm_model,
-                  embed_model: catalog?.[provider].embed[0] || s.embed_model,
-                  rerank_model: catalog?.[provider].rerank[0] || s.rerank_model,
-                } : null)}
-                className={`rounded border px-3 py-2 text-sm ${
-                  settings?.active_provider === provider ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700'
-                }`}
-              >
-                {provider === 'cloud' ? '☁ Cloud' : '⚙ Local'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">LLM модель</label>
           <select
             value={settings?.llm_model || ''}
             onChange={(e) => setSettings(s => s ? { ...s, llm_model: e.target.value } : null)}
             className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            {(activeModels?.llm || []).map(name => (
-              <option key={name} value={name}>{name}</option>
+            {ollamaModels.map(m => (
+              <option key={m.name} value={m.name}>{m.name}</option>
             ))}
+            <option value="qwen2.5:3b">qwen2.5:3b</option>
+            <option value="phi4-mini:3.8b">phi4-mini:3.8b</option>
           </select>
         </div>
 
@@ -158,36 +127,11 @@ export default function SettingsPanel() {
             onChange={(e) => setSettings(s => s ? { ...s, embed_model: e.target.value } : null)}
             className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            {(activeModels?.embed || []).map(name => (
-              <option key={name} value={name}>{name}</option>
+            {ollamaModels.filter(m => m.name.includes('embed')).map(m => (
+              <option key={m.name} value={m.name}>{m.name}</option>
             ))}
+            <option value="nomic-embed-text">nomic-embed-text</option>
           </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Temperature</label>
-            <input
-              type="number"
-              step="0.1"
-              value={settings?.llm_temperature ?? 0.3}
-              onChange={(e) => setSettings(s => s ? { ...s, llm_temperature: parseFloat(e.target.value) || 0.3 } : null)}
-              className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              min={0}
-              max={2}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Max tokens</label>
-            <input
-              type="number"
-              value={settings?.llm_max_tokens ?? 1000}
-              onChange={(e) => setSettings(s => s ? { ...s, llm_max_tokens: parseInt(e.target.value) || 1000 } : null)}
-              className="w-full px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              min={64}
-              max={8192}
-            />
-          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

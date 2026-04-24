@@ -4,15 +4,22 @@ from typing import List, Optional, Dict, Any, AsyncGenerator, Tuple
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
+from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.llms.ollama import Ollama
+from llama_index.core import Settings
 
 from app.config import settings
 from app.indexer.embedder import COLLECTION_NAME
 from app.indexer import bm25
-from app.models import ModelRouter
 from app.rag.reranker import rerank
-from app.services.settings_service import SettingsService
 
 qdrant = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+
+embedder = OllamaEmbedding(model_name=settings.embed_model, base_url=settings.ollama_host)
+llm = Ollama(model=settings.llm_model, base_url=settings.ollama_host, request_timeout=120.0)
+
+Settings.embed_model = embedder
+Settings.llm = llm
 
 # Коэффициенты для гибридного поиска
 DENSE_WEIGHT = 0.7
@@ -76,21 +83,20 @@ async def search_query(query: str, top_k: int = None, filters: Optional[dict] = 
     """
     Гибридный поиск: BM25 + dense embeddings с reciprocal rank fusion.
     """
-    runtime_settings = SettingsService()
-    top_k = top_k or runtime_settings.get_top_k_search()
-    provider = ModelRouter().get_provider()
+    top_k = top_k or settings.top_k_search
     
     qdrant_filter = _build_qdrant_filter(filters)
     
-    # 1. Dense поиск (векторы)
-    embedding = provider.embed_text(query)
-    dense_results = qdrant.query_points(
+    # 1. Dense поиск (векторы) - новый API Qdrant
+    embedding = embedder.get_text_embedding(query)
+    search_result = qdrant.query_points(
         collection_name=COLLECTION_NAME,
         query=embedding,
         limit=top_k * 2,  # Берём больше для fusion
         query_filter=qdrant_filter,
         with_payload=True,
-    ).points
+    )
+    dense_results = search_result.points if hasattr(search_result, 'points') else []
     
     # 2. BM25 поиск (текст)
     bm25_results = []
@@ -223,9 +229,8 @@ def _reciprocal_rank_fusion(dense_results, bm25_results: List[Dict], top_k: int)
 
 async def _build_rag_context(query: str, top_k: int = None) -> tuple[str, List[Dict]]:
     """Выполняет поиск + reranking и возвращает контекст + источники."""
-    runtime_settings = SettingsService()
-    top_k = top_k or runtime_settings.get_top_k_rerank()
-    search_results = await search_query(query, top_k=runtime_settings.get_top_k_search())
+    top_k = top_k or settings.top_k_rerank
+    search_results = await search_query(query, top_k=settings.top_k_search)
     reranked = rerank(query, search_results, top_k=top_k)
     context = "\n\n".join([f"[{i+1}] {r['snippet']}" for i, r in enumerate(reranked)])
     return context, reranked
@@ -245,10 +250,9 @@ def _build_prompt(context: str, query: str) -> str:
 async def ask_query(query: str, top_k: int = None, filters: Optional[dict] = None) -> Dict[str, Any]:
     context, sources = await _build_rag_context(query, top_k=top_k)
     prompt = _build_prompt(context, query)
-    provider = ModelRouter().get_provider()
-    response = provider.complete(prompt, system_prompt="Ты — RAG ассистент по локальным файлам.")
+    response = llm.complete(prompt)
     return {
-        "answer": response,
+        "answer": response.text,
         "sources": [{"path": r["path"], "filename": r["filename"], "snippet": r["snippet"], "score": r["score"], "rerank_score": r.get("rerank_score")} for r in sources],
     }
 
@@ -258,7 +262,6 @@ async def ask_query_stream(query: str, top_k: int = None, filters: Optional[dict
     try:
         context, sources = await _build_rag_context(query, top_k=top_k)
         prompt = _build_prompt(context, query)
-        provider = ModelRouter().get_provider()
 
         # Отправляем источники первым событием
         sources_payload = {
@@ -268,8 +271,9 @@ async def ask_query_stream(query: str, top_k: int = None, filters: Optional[dict
         yield f"data: {json.dumps(sources_payload, ensure_ascii=False)}\n\n"
 
         # Стриминг токенов от LLM
-        for token in provider.stream_complete(prompt, system_prompt="Ты — RAG ассистент по локальным файлам."):
-            payload = {"type": "token", "content": token}
+        stream_response = llm.stream_complete(prompt)
+        for token in stream_response:
+            payload = {"type": "token", "content": token.delta}
             yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
         yield "data: [DONE]\n\n"
@@ -277,3 +281,4 @@ async def ask_query_stream(query: str, top_k: int = None, filters: Optional[dict
         error_payload = {"type": "error", "message": str(e)}
         yield f"data: {json.dumps(error_payload, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
+

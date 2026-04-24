@@ -6,7 +6,6 @@ import httpx
 
 from app.db.models import get_db
 from app.config import settings
-from app.models import ModelRouter
 
 router = APIRouter()
 
@@ -35,31 +34,25 @@ class PullStatus(BaseModel):
 
 @router.get("/models", response_model=OllamaModelsResponse)
 async def list_models():
-    """Список доступных моделей активного провайдера.
-    Для local режима при недоступном Ollama возвращает понятную ошибку.
-    Для cloud режима возвращает каталог облачных моделей.
-    """
-    try:
-        models = ModelRouter().get_provider().list_models()
-        return OllamaModelsResponse(
-            models=[
-                OllamaModel(
-                    name=m.get("name", ""),
-                    size=m.get("size", 0),
-                    digest=m.get("digest", ""),
-                    modified_at=m.get("modified_at", ""),
-                )
-                for m in models
-            ]
-        )
-    except httpx.HTTPError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Local provider is unavailable. Start Ollama via docker compose "
-                "or switch to cloud mode with NEURALDEEP_API_KEY configured."
-            ),
-        )
+    """Список доступных моделей в Ollama."""
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(f"{settings.ollama_host}/api/tags", timeout=10.0)
+            resp.raise_for_status()
+            data = resp.json()
+            return OllamaModelsResponse(
+                models=[
+                    OllamaModel(
+                        name=m.get("name", ""),
+                        size=m.get("size", 0),
+                        digest=m.get("digest", ""),
+                        modified_at=m.get("modified_at", ""),
+                    )
+                    for m in data.get("models", [])
+                ]
+            )
+        except httpx.HTTPError as e:
+            raise HTTPException(status_code=503, detail=f"Ollama unavailable: {str(e)}")
 
 
 @router.post("/models/pull")

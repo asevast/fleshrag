@@ -15,9 +15,9 @@ interface FileBrowserProps {
 
 export default function FileBrowser({ onPreview }: FileBrowserProps) {
   const [files, setFiles] = useState<IndexedFile[]>([])
-  const [fileTypes, setFileTypes] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [skip, setSkip] = useState(0)
+  const [total, setTotal] = useState(0)
   const [filterType, setFilterType] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [searchPath, setSearchPath] = useState('')
@@ -49,13 +49,6 @@ export default function FileBrowser({ onPreview }: FileBrowserProps) {
     fetchFiles()
   }, [fetchFiles])
 
-  useEffect(() => {
-    fetch('/api/files/types')
-      .then((res) => res.json())
-      .then((data) => setFileTypes(Array.isArray(data) ? data : []))
-      .catch((error) => console.error('Failed to load file types:', error))
-  }, [])
-
   const handleReset = () => {
     setSkip(0)
     setFilterType('')
@@ -71,34 +64,29 @@ export default function FileBrowser({ onPreview }: FileBrowserProps) {
   }
 
   return (
-    <div className="soft-card rounded-[28px] p-5">
+    <div className="bg-white rounded shadow p-4">
       <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="text-xl font-semibold">Файлы</h2>
-          <p className="mt-1 text-sm text-[rgb(var(--muted))]">
-            Просмотр индексированного пространства с фильтрами по статусу, типу и пути.
-          </p>
-        </div>
+        <h2 className="text-xl font-semibold">Файлы</h2>
         <button
           onClick={handleReset}
-          className="rounded-full border border-[rgba(207,190,165,0.6)] px-3 py-1.5 text-sm text-[rgb(var(--brand))] transition hover:bg-[rgba(199,89,48,0.08)]"
+          className="text-sm text-blue-600 hover:underline"
         >
           Сбросить фильтры
         </button>
       </div>
 
-      <div className="mb-4 flex flex-col gap-2 lg:flex-row">
+      <div className="flex gap-2 mb-4">
         <input
           type="text"
           placeholder="Поиск по пути..."
           value={searchPath}
           onChange={(e) => { setSearchPath(e.target.value); setSkip(0) }}
-          className="flex-1 rounded-2xl border border-[rgba(207,190,165,0.6)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+          className="flex-1 px-3 py-2 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <select
           value={filterStatus}
           onChange={(e) => { setFilterStatus(e.target.value); setSkip(0) }}
-          className="rounded-2xl border border-[rgba(207,190,165,0.6)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+          className="px-3 py-2 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           <option value="">Все статусы</option>
           <option value="indexed">Проиндексировано</option>
@@ -109,42 +97,45 @@ export default function FileBrowser({ onPreview }: FileBrowserProps) {
         <select
           value={filterType}
           onChange={(e) => { setFilterType(e.target.value); setSkip(0) }}
-          className="rounded-2xl border border-[rgba(207,190,165,0.6)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+          className="px-3 py-2 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           <option value="">Все типы</option>
-          {fileTypes.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
+          <option value="pdf">PDF</option>
+          <option value="docx">DOCX</option>
+          <option value="xlsx">XLSX</option>
+          <option value="pptx">PPTX</option>
+          <option value="txt">TXT</option>
+          <option value="md">MD</option>
+          <option value="png">PNG</option>
+          <option value="jpg">JPG</option>
+          <option value="mp3">MP3</option>
+          <option value="mp4">MP4</option>
         </select>
       </div>
 
       {loading ? (
-        <div className="py-8 text-center text-[rgb(var(--muted))]">Загрузка...</div>
+        <div className="text-center text-gray-500 py-8">Загрузка...</div>
       ) : files.length === 0 ? (
-        <div className="rounded-[24px] border border-dashed border-[rgba(207,190,165,0.7)] bg-white/55 py-8 text-center text-[rgb(var(--muted))]">
-          Нет файлов по текущим фильтрам
-        </div>
+        <div className="text-center text-gray-500 py-8">Нет файлов</div>
       ) : (
         <>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {files.map((file) => (
               <div
                 key={file.id}
-                className="cursor-pointer rounded-[22px] border border-[rgba(207,190,165,0.45)] bg-white/80 p-4 transition hover:border-[rgba(26,116,122,0.45)] hover:bg-white"
+                className="p-3 border rounded hover:bg-gray-50 cursor-pointer"
                 onClick={() => onPreview?.(file.path, file.filename)}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
-                    <div className="truncate font-medium text-[rgb(var(--brand-strong))]">{file.filename}</div>
-                    <div className="truncate text-xs text-[rgb(var(--muted))]">{file.path}</div>
-                    <div className="mt-1 text-xs text-[rgb(var(--muted))] opacity-80">
+                    <div className="font-medium text-blue-700 truncate">{file.filename}</div>
+                    <div className="text-xs text-gray-500 truncate">{file.path}</div>
+                    <div className="text-xs text-gray-400 mt-1">
                       {file.file_type} • {file.indexed_at ? new Date(file.indexed_at).toLocaleString('ru-RU') : '-'}
                     </div>
                   </div>
                   <span
-                    className={`rounded-full px-3 py-1 text-xs ${statusColors[file.status] || 'bg-gray-100'}`}
+                    className={`px-2 py-1 text-xs rounded ${statusColors[file.status] || 'bg-gray-100'}`}
                   >
                     {file.status}
                   </span>
@@ -157,17 +148,17 @@ export default function FileBrowser({ onPreview }: FileBrowserProps) {
             <button
               onClick={() => setSkip(Math.max(0, skip - limit))}
               disabled={skip === 0}
-              className="rounded-full border border-[rgba(207,190,165,0.6)] px-4 py-2 text-sm transition hover:bg-white disabled:opacity-50"
+              className="px-4 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
             >
               ← Назад
             </button>
-            <span className="text-sm text-[rgb(var(--muted))]">
+            <span className="text-sm text-gray-600">
               {skip + 1} - {skip + files.length}
             </span>
             <button
               onClick={() => setSkip(skip + limit)}
               disabled={files.length < limit}
-              className="rounded-full border border-[rgba(207,190,165,0.6)] px-4 py-2 text-sm transition hover:bg-white disabled:opacity-50"
+              className="px-4 py-2 border rounded text-sm hover:bg-gray-50 disabled:opacity-50"
             >
               Вперёд →
             </button>

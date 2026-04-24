@@ -55,10 +55,9 @@ class BM25Index:
         
         # Обновляем инвертированный индекс и DF
         for token, count in tf.items():
-            # Проверяем, был ли уже этот токен в документе
-            if doc_id not in self.inverted_index[token]:
-                self.doc_freq[token] += 1
             self.inverted_index[token][doc_id] = count
+            if doc_id not in self.inverted_index[token] or self.inverted_index[token][doc_id] == 0:
+                self.doc_freq[token] += 1
     
     def score_query(self, query: str, doc_id: str) -> float:
         """BM25 score для документа по запросу."""
