@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import SearchBar from './components/SearchBar'
-import ResultCard from './components/ResultCard'
-import FilePreview from './components/FilePreview'
-import FileBrowser from './components/FileBrowser'
+import { useEffect, useState } from 'react'
+
+import AdminConsole from './components/AdminConsole'
 import AnswerStream from './components/AnswerStream'
-import SettingsPanel from './components/SettingsPanel'
-import StatusPanel from './components/StatusPanel'
+import ConversationDetail from './components/ConversationDetail'
+import ConversationList from './components/ConversationList'
+import FileBrowser from './components/FileBrowser'
+import FilePreview from './components/FilePreview'
+import ResultCard from './components/ResultCard'
+import SearchBar from './components/SearchBar'
 import { useRag } from './hooks/useRag'
 
 interface Result {
@@ -25,96 +27,216 @@ interface SearchFilters {
   path_contains?: string
 }
 
+type View = 'search' | 'ask' | 'library' | 'dialogs' | 'admin'
+
+const tabs: Array<{ id: View; label: string; hint: string }> = [
+  { id: 'search', label: 'Search', hint: 'Гибридный поиск по индексу' },
+  { id: 'ask', label: 'Ask', hint: 'Ответ с источниками и стримингом' },
+  { id: 'library', label: 'Library', hint: 'Просмотр индексированных файлов' },
+  { id: 'dialogs', label: 'Dialogs', hint: 'История RAG-сессий' },
+  { id: 'admin', label: 'Admin', hint: 'Провайдер, статус и бюджет' },
+]
+
 function App() {
+  const [view, setView] = useState<View>('search')
   const [results, setResults] = useState<Result[]>([])
   const [lastQuery, setLastQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState<'search' | 'ask'>('search')
-  const [showBrowser, setShowBrowser] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [previewFile, setPreviewFile] = useState<{ path: string; filename: string } | null>(null)
+  const [activeConversationId, setActiveConversationId] = useState<number | null>(null)
+  const [conversationRefreshKey, setConversationRefreshKey] = useState(0)
   const rag = useRag()
 
   const handleSearch = async (query: string, filters?: SearchFilters) => {
-    setLoading(true)
-    setResults([])
     setLastQuery(query)
+
+    if (view === 'ask') {
+      await rag.ask(query)
+      return
+    }
+
+    setSearchLoading(true)
+    setResults([])
     try {
-      if (mode === 'search') {
-        const res = await fetch('/api/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, top_k: 10, filters }),
-        })
-        if (!res.ok) throw new Error('Search failed')
-        const data = await res.json()
-        setResults(data)
-      } else {
-        await rag.ask(query)
+      const response = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, top_k: 10, filters }),
+      })
+      if (!response.ok) {
+        throw new Error('Search failed')
       }
-    } catch (e) {
-      console.error(e)
+      setResults(await response.json())
+    } catch (error) {
+      console.error(error)
     } finally {
-      setLoading(false)
+      setSearchLoading(false)
     }
   }
 
-  const activeLoading = mode === 'search' ? loading : rag.loading
+  const createConversation = async () => {
+    try {
+      const response = await fetch('/api/conversations?title=Новый диалог', { method: 'POST' })
+      if (!response.ok) {
+        throw new Error('Conversation creation failed')
+      }
+      const data = await response.json()
+      setActiveConversationId(data.id)
+      setConversationRefreshKey((value) => value + 1)
+      setView('dialogs')
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const sendConversationMessage = async (query: string) => {
+    let conversationId = activeConversationId
+    if (!conversationId) {
+      const response = await fetch('/api/conversations?title=Новый диалог', { method: 'POST' })
+      if (!response.ok) {
+        throw new Error('Conversation creation failed')
+      }
+      const data = await response.json()
+      conversationId = data.id
+      setActiveConversationId(conversationId)
+    }
+
+    const response = await fetch(`/api/conversations/${conversationId}/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, stream: false }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Conversation ask failed')
+    }
+
+    setConversationRefreshKey((value) => value + 1)
+  }
+
+  useEffect(() => {
+    if (view === 'dialogs' && activeConversationId === null) {
+      createConversation()
+    }
+  }, [view])
 
   return (
-    <div className="min-h-screen p-4 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-center">Multimodal RAG</h1>
-      
-      <div className="flex justify-center gap-2 mb-4">
-        <button
-          onClick={() => { setMode('search'); setShowBrowser(false) }}
-          className={`px-4 py-2 rounded ${mode === 'search' && !showBrowser ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-        >
-          Поиск
-        </button>
-        <button
-          onClick={() => { setMode('ask'); setShowBrowser(false) }}
-          className={`px-4 py-2 rounded ${mode === 'ask' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-        >
-          Вопрос-ответ
-        </button>
-        <button
-          onClick={() => { setShowBrowser(!showBrowser); setMode('search') }}
-          className={`px-4 py-2 rounded ${showBrowser ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-        >
-          Файлы
-        </button>
-      </div>
+    <div className="min-h-screen bg-stone-50 text-stone-900">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <header className="rounded-[32px] border border-stone-200 bg-white px-6 py-8 shadow-sm">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="text-xs uppercase tracking-[0.3em] text-teal-700">FleshRAG MVP</div>
+              <h1 className="mt-3 text-4xl font-semibold tracking-tight text-stone-900">Multimodal workspace for search, grounded answers and operations</h1>
+              <p className="mt-3 text-sm leading-6 text-stone-600">
+                Один экран для поиска, вопрос-ответа, библиотеки, диалогов и runtime-управления. Текущий shell приведён к фактическим backend endpoint&apos;ам.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <StatCard label="Search results" value={String(results.length)} hint={lastQuery ? `last query: ${lastQuery}` : 'гибридный retrieval'} />
+              <StatCard label="Ask mode" value={rag.loading ? 'streaming' : 'ready'} hint={rag.sources.length ? `${rag.sources.length} sources` : 'grounded answer'} />
+              <StatCard label="Dialogs" value={activeConversationId ? `#${activeConversationId}` : 'new'} hint="RAG history and export" />
+            </div>
+          </div>
+        </header>
 
-      {showBrowser ? (
-        <FileBrowser onPreview={(path, filename) => setPreviewFile({ path, filename })} />
-      ) : (
-        <>
-          <SearchBar onSearch={handleSearch} loading={activeLoading} />
+        <nav className="mt-6 grid gap-3 md:grid-cols-5">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setView(tab.id)}
+              className={`rounded-[24px] border px-4 py-4 text-left transition ${
+                view === tab.id
+                  ? 'border-teal-700 bg-teal-700 text-white shadow-sm'
+                  : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 hover:bg-stone-100'
+              }`}
+            >
+              <div className="text-sm font-semibold">{tab.label}</div>
+              <div className={`mt-1 text-xs ${view === tab.id ? 'text-teal-50' : 'text-stone-500'}`}>{tab.hint}</div>
+            </button>
+          ))}
+        </nav>
 
-          {mode === 'ask' && (
-            <AnswerStream
-              answer={rag.answer}
-              sources={rag.sources}
-              loading={rag.loading}
-              error={rag.error}
-              onPreview={(path, filename) => setPreviewFile({ path, filename })}
-            />
-          )}
+        <main className="mt-6">
+          {(view === 'search' || view === 'ask') && (
+            <section className="rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm">
+              <SearchBar onSearch={handleSearch} loading={view === 'search' ? searchLoading : rag.loading} />
 
-          {mode === 'search' && (
-            <div className="mt-6 space-y-4">
-              {results.map((r, i) => (
-                <ResultCard
-                  key={i}
-                  result={r}
-                  query={lastQuery}
+              {view === 'search' && (
+                <div className="mt-6 space-y-4">
+                  {results.length === 0 && !searchLoading ? (
+                    <EmptyState
+                      title="Поиск пока пуст"
+                      description="Запустите запрос, чтобы получить релевантные фрагменты, файл и превью по клику."
+                    />
+                  ) : (
+                    results.map((result, index) => (
+                      <ResultCard
+                        key={`${result.path}-${index}`}
+                        result={result}
+                        query={lastQuery}
+                        onPreview={(path, filename) => setPreviewFile({ path, filename })}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+
+              {view === 'ask' && (
+                <AnswerStream
+                  answer={rag.answer}
+                  sources={rag.sources}
+                  loading={rag.loading}
+                  error={rag.error}
                   onPreview={(path, filename) => setPreviewFile({ path, filename })}
                 />
-              ))}
-            </div>
+              )}
+            </section>
           )}
-        </>
-      )}
+
+          {view === 'library' && (
+            <section className="rounded-[32px] border border-stone-200 bg-white p-6 shadow-sm">
+              <FileBrowser onPreview={(path, filename) => setPreviewFile({ path, filename })} />
+            </section>
+          )}
+
+          {view === 'dialogs' && (
+            <section className="grid gap-6 xl:grid-cols-[360px_1fr]">
+              <ConversationList
+                key={conversationRefreshKey}
+                selectedId={activeConversationId ?? undefined}
+                onSelect={setActiveConversationId}
+                onNew={createConversation}
+                onDelete={(id) => {
+                  if (activeConversationId === id) {
+                    setActiveConversationId(null)
+                  }
+                  setConversationRefreshKey((value) => value + 1)
+                }}
+                onExport={() => undefined}
+              />
+
+              {activeConversationId ? (
+                <ConversationDetail
+                  key={activeConversationId + conversationRefreshKey}
+                  conversationId={activeConversationId}
+                  onSend={sendConversationMessage}
+                  onPreview={(path, filename) => setPreviewFile({ path, filename })}
+                />
+              ) : (
+                <div className="rounded-[32px] border border-dashed border-stone-300 bg-white p-8 shadow-sm">
+                  <EmptyState
+                    title="Диалог не выбран"
+                    description="Создайте новый диалог или выберите существующий слева, чтобы продолжить работу в контексте истории."
+                  />
+                </div>
+              )}
+            </section>
+          )}
+
+          {view === 'admin' && <AdminConsole />}
+        </main>
+      </div>
 
       {previewFile && (
         <FilePreview
@@ -123,9 +245,25 @@ function App() {
           onClose={() => setPreviewFile(null)}
         />
       )}
+    </div>
+  )
+}
 
-      <SettingsPanel />
-      <StatusPanel />
+function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="rounded-[24px] border border-stone-200 bg-stone-50 px-4 py-4">
+      <div className="text-xs uppercase tracking-[0.18em] text-stone-500">{label}</div>
+      <div className="mt-2 text-2xl font-semibold text-stone-900">{value}</div>
+      <div className="mt-1 text-xs text-stone-500">{hint}</div>
+    </div>
+  )
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-[24px] border border-dashed border-stone-300 bg-stone-50 px-6 py-10 text-center">
+      <div className="text-lg font-semibold text-stone-800">{title}</div>
+      <div className="mt-2 text-sm leading-6 text-stone-500">{description}</div>
     </div>
   )
 }

@@ -21,7 +21,6 @@ export default function SettingsPanel() {
   const [open, setOpen] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([])
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 

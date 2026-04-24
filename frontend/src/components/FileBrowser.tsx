@@ -17,7 +17,6 @@ export default function FileBrowser({ onPreview }: FileBrowserProps) {
   const [files, setFiles] = useState<IndexedFile[]>([])
   const [loading, setLoading] = useState(false)
   const [skip, setSkip] = useState(0)
-  const [total, setTotal] = useState(0)
   const [filterType, setFilterType] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [searchPath, setSearchPath] = useState('')
