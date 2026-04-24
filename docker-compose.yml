@@ -179,4 +179,3 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
-claude mcp add playwright npx @playwright/mcp@latest

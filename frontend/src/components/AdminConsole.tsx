@@ -19,6 +19,15 @@ interface AdminStatus {
       empty: number
     }
   }
+  index_version: {
+    has_metadata: boolean
+    embed_model?: string
+    vector_dim?: number
+    index_version?: string
+    current_model?: string
+    current_dim?: number
+    error?: string
+  }
   services: Array<{
     name: string
     status: string
@@ -30,6 +39,17 @@ interface AdminStatus {
     fail_threshold: number
     cooldown_seconds: number
     time_until_retry: number
+  }
+  runtime_state: {
+    active_provider: string
+    last_provider_switch: string
+    error_count: number
+    last_error_time: string | null
+    fallback_active: boolean
+    fallback_reason: string | null
+    health_status: string
+    last_health_check: string | null
+    health_details: Record<string, unknown>
   }
   timestamp: string
 }
@@ -338,6 +358,59 @@ export default function AdminConsole() {
                 </div>
               </div>
             )}
+            
+            {/* Runtime State */}
+            {status?.runtime_state && (
+              <div className={`mt-4 rounded-2xl border p-4 text-sm ${
+                status.runtime_state.health_status === 'healthy'
+                  ? 'border-green-300 bg-green-50'
+                  : status.runtime_state.health_status === 'degraded'
+                  ? 'border-yellow-300 bg-yellow-50'
+                  : 'border-gray-300 bg-gray-50'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Activity className={`h-4 w-4 ${
+                    status.runtime_state.health_status === 'healthy'
+                      ? 'text-green-600'
+                      : status.runtime_state.health_status === 'degraded'
+                      ? 'text-yellow-600'
+                      : 'text-gray-600'
+                  }`} />
+                  <span className="font-medium">Runtime State</span>
+                </div>
+                <div className="mt-2 space-y-1 text-xs">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[rgb(var(--muted))]">Provider: </span>
+                      <span className="font-medium">{status.runtime_state.active_provider}</span>
+                    </div>
+                    <div>
+                      <span className="text-[rgb(var(--muted))]">Health: </span>
+                      <span className="font-medium capitalize">{status.runtime_state.health_status}</span>
+                    </div>
+                  </div>
+                  {status.runtime_state.fallback_active && (
+                    <div className="text-yellow-700">
+                      ⚠️ Fallback active: {status.runtime_state.fallback_reason}
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-[rgb(var(--muted))]">Errors: </span>
+                    <span className="font-medium">{status.runtime_state.error_count}</span>
+                  </div>
+                  <div>
+                    <span className="text-[rgb(var(--muted))]">Last switch: </span>
+                    <span className="font-medium">{new Date(status.runtime_state.last_provider_switch).toLocaleTimeString()}</span>
+                  </div>
+                  {status.runtime_state.last_error_time && (
+                    <div>
+                      <span className="text-[rgb(var(--muted))]">Last error: </span>
+                      <span className="font-medium">{new Date(status.runtime_state.last_error_time).toLocaleTimeString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="soft-card rounded-[28px] p-5">
@@ -371,6 +444,60 @@ export default function AdminConsole() {
               <HealthCell label="Errors" value={status?.index.stats.error || 0} />
               <HealthCell label="Empty" value={status?.index.stats.empty || 0} />
             </div>
+            
+            {/* Index Version Compatibility */}
+            {status?.index_version && (
+              <div className={`mt-4 rounded-2xl border p-4 text-sm ${
+                !status.index_version.has_metadata
+                  ? 'border-yellow-300 bg-yellow-50'
+                  : status.index_version.embed_model === status.index_version.current_model
+                  ? 'border-green-300 bg-green-50'
+                  : status.index_version.vector_dim !== status.index_version.current_dim
+                  ? 'border-red-300 bg-red-50'
+                  : 'border-blue-300 bg-blue-50'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Database className={`h-4 w-4 ${
+                    !status.index_version.has_metadata
+                      ? 'text-yellow-600'
+                      : status.index_version.embed_model === status.index_version.current_model
+                      ? 'text-green-600'
+                      : status.index_version.vector_dim !== status.index_version.current_dim
+                      ? 'text-red-600'
+                      : 'text-blue-600'
+                  }`} />
+                  <span className="font-medium">Index Version</span>
+                </div>
+                <div className="mt-2 space-y-1 text-xs">
+                  {status.index_version.error ? (
+                    <div className="text-red-600">Error: {status.index_version.error}</div>
+                  ) : !status.index_version.has_metadata ? (
+                    <div className="text-yellow-700">⚠️ Legacy index — reindex recommended</div>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-[rgb(var(--muted))]">Model: </span>
+                        <span className="font-medium">{status.index_version.embed_model}</span>
+                      </div>
+                      <div>
+                        <span className="text-[rgb(var(--muted))]">Dimension: </span>
+                        <span className="font-medium">{status.index_version.vector_dim}d</span>
+                      </div>
+                      {status.index_version.embed_model !== status.index_version.current_model && (
+                        <div className="text-blue-700">
+                          ℹ️ Current: {status.index_version.current_model} ({status.index_version.current_dim}d)
+                        </div>
+                      )}
+                      {status.index_version.vector_dim !== status.index_version.current_dim && (
+                        <div className="font-medium text-red-700">
+                          ⚠️ Dimension mismatch — REINDEX REQUIRED
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </div>
