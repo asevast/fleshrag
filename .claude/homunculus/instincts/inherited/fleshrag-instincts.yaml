@@ -1,0 +1,404 @@
+# Instincts generated from https://github.com/asevast/fleshrag
+# Generated: 2026-04-24T06:38:12.233Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: fleshrag-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Commit Length
+
+## Action
+
+Write moderate-length commit messages (~51 characters)
+
+## Evidence
+
+- Average commit message length: 51 chars
+- Based on 2 commits
+
+---
+id: fleshrag-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: fleshrag-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: fleshrag-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Export Style
+
+## Action
+
+Prefer default exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: default
+
+---
+id: fleshrag-arch-type-based
+trigger: "when adding new code"
+confidence: 0.8
+domain: architecture
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Arch Type Based
+
+## Action
+
+Place code in the appropriate type folder (components/, services/, utils/, etc.)
+
+## Evidence
+
+- Type-based module organization detected
+- Folders: 
+
+---
+id: fleshrag-test-naming
+trigger: "when creating a test file"
+confidence: 0.85
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Test Naming
+
+## Action
+
+Name test files using the pattern: *.test.ts
+
+## Evidence
+
+- File pattern: *.test.ts
+- Consistent across test files
+
+---
+id: fleshrag-test-types
+trigger: "when planning tests for a feature"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Test Types
+
+## Action
+
+Write unit, integration tests to match project standards
+
+## Evidence
+
+- Test types detected: unit, integration
+- Coverage config: no
+
+---
+id: fleshrag-workflow-multi-service-feature-or-integration-update
+trigger: "when doing multi service feature or integration update"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/asevast/fleshrag
+---
+
+# Fleshrag Workflow Multi Service Feature Or Integration Update
+
+## Action
+
+Follow the multi-service-feature-or-integration-update workflow:
+1. Update backend service code (e.g., API, indexer, db, config)
+2. Update or add Dockerfiles and docker-compose.yml for new/changed services
+3. Update environment files (.env, .env.example)
+4. Update or add frontend components as needed
+5. Add or update tests (integration, smoke)
+6. Update documentation if relevant
+7. Update .gitignore for new directories or files
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: backend/app/api/*.py, backend/app/indexer/*.py, backend/app/db/*.py
+
+---
+id: fleshrag-instinct-naming-files
+trigger: "When creating or renaming a file in the codebase"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Naming Files
+
+## Action
+
+Use camelCase for file names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.files: camelCase
+
+---
+id: fleshrag-instinct-naming-functions
+trigger: "When defining a function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Naming Functions
+
+## Action
+
+Use camelCase for function names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.functions: camelCase
+
+---
+id: fleshrag-instinct-naming-classes
+trigger: "When defining a class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Naming Classes
+
+## Action
+
+Use PascalCase for class names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.classes: PascalCase
+
+---
+id: fleshrag-instinct-naming-constants
+trigger: "When defining a constant"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Naming Constants
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for constant names
+
+## Evidence
+
+- Pattern in codeStyle.namingConventions.constants: SCREAMING_SNAKE_CASE
+
+---
+id: fleshrag-instinct-imports
+trigger: "When importing modules in Python code"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Imports
+
+## Action
+
+Use relative imports
+
+## Evidence
+
+- Pattern in codeStyle.importStyle: relative
+
+---
+id: fleshrag-instinct-exports
+trigger: "When exporting modules or components"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Exports
+
+## Action
+
+Use default export style
+
+## Evidence
+
+- Pattern in codeStyle.exportStyle: default
+
+---
+id: fleshrag-instinct-test-file-pattern
+trigger: "When creating a test file for TypeScript code"
+confidence: 0.9
+domain: testing
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Test File Pattern
+
+## Action
+
+Name the file with the pattern *.test.ts
+
+## Evidence
+
+- Pattern in testing.filePattern: *.test.ts
+
+---
+id: fleshrag-instinct-test-types
+trigger: "When writing tests"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Test Types
+
+## Action
+
+Include both unit and integration tests
+
+## Evidence
+
+- Pattern in testing.testTypes: unit, integration
+
+---
+id: fleshrag-instinct-test-location
+trigger: "When adding tests"
+confidence: 0.6
+domain: testing
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Test Location
+
+## Action
+
+Place tests in mixed locations (not strictly separated from source code)
+
+## Evidence
+
+- Pattern in architecture.folderStructure.testLocation: mixed
+
+---
+id: fleshrag-instinct-commit-prefixes
+trigger: "When writing a commit message"
+confidence: 0.8
+domain: git
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Commit Prefixes
+
+## Action
+
+Prefix the commit message with 'fix:' for bug fixes or 'merge:' for merges
+
+## Evidence
+
+- Seen in commit: fix: CUDA enablement + smoke tests + Qdrant API migration
+- Seen in commit: merge: master into dev (preserve CUDA fixes)
+
+---
+id: fleshrag-instinct-commit-length
+trigger: "When composing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Commit Length
+
+## Action
+
+Keep the commit message concise (around 50 characters on average)
+
+## Evidence
+
+- Pattern in commits.averageLength: 51
+
+---
+id: fleshrag-instinct-multi-service-update
+trigger: "When rolling out a major feature or infrastructure change that affects backend, frontend, Docker, and tests simultaneously"
+confidence: 0.95
+domain: workflow
+source: repo-analysis
+source_repo: asevast/fleshrag
+---
+
+# Fleshrag Instinct Multi Service Update
+
+## Action
+
+Follow the multi-service-feature-or-integration-update workflow: update backend service code, Dockerfiles, environment files, frontend components, tests, documentation, and .gitignore as needed
+
+## Evidence
+
+- Workflow: multi-service-feature-or-integration-update
+- Example commit sequence and files involved
+
