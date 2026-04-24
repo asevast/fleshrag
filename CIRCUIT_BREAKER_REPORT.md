@@ -16,14 +16,14 @@
 
 ### Компоненты
 
-| Файл | Назначение | Строк |
-|------|------------|-------|
-| `backend/app/models/circuit_breaker.py` | Базовая логика Circuit Breaker | 137 |
-| `backend/app/models/router.py` | Интеграция в ModelRouter | +40 |
-| `backend/app/rag/pipeline.py` | Запись успехов/ошибок | +25 |
-| `backend/app/api/admin.py` | Статус в admin API | +1 |
-| `frontend/src/components/AdminConsole.tsx` | UI индикация | +35 |
-| `backend/tests/test_circuit_breaker.py` | Тесты (16 тестов) | 180 |
+| File | Purpose | Lines |
+|------|---------|-------|
+| `backend/app/models/circuit_breaker.py` | Base Circuit Breaker logic | 137 |
+| `backend/app/models/router.py` | Integration with ModelRouter | +40 |
+| `backend/app/rag/pipeline.py` | Success/failure recording | +25 |
+| `backend/app/api/admin.py` | Status in admin API | +1 |
+| `frontend/src/components/AdminConsole.tsx` | UI indicator | +35 |
+| `backend/tests/test_circuit_breaker.py` | Tests (16 tests) | 180 |
 
 ---
 
@@ -69,6 +69,7 @@ HALF_OPEN (проверка)
 ```
 
 **Возможные состояния:**
+
 - `"closed"` — норма, cloud работает
 - `"open"` — cloud заблокирован, используется local
 - `"half_open"` — проверка восстановления
@@ -91,6 +92,7 @@ HALF_OPEN (проверка)
 ```
 
 **Цветовая индикация:**
+
 - 🟢 **Green** — closed (норма)
 - 🟡 **Yellow** — half_open (проверка)
 - 🔴 **Red** — open (блокировка) + таймер
@@ -99,7 +101,7 @@ HALF_OPEN (проверка)
 
 ## 🧪 Тесты
 
-### 16 тестов покрывают:
+### 16 тестов покрывают
 
 | Категория | Тестов | Что проверяют |
 |-----------|--------|---------------|

@@ -61,6 +61,32 @@ async def get_admin_status(db: Session = Depends(get_db)):
     router_instance = ModelRouter(db)
     provider = router_instance.get_provider()
     stats = crud.get_index_stats(db)
+    
+    # Получаем информацию о версии индекса
+    try:
+        from app.indexer.embedder import COLLECTION_NAME, _get_index_metadata, _get_current_embed_model, _get_vector_dimension
+        from qdrant_client import QdrantClient
+        qdrant_admin = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+        
+        metadata = _get_index_metadata() if qdrant_admin.collection_exists(COLLECTION_NAME) else None
+        
+        index_version_info = {
+            "has_metadata": metadata is not None,
+            "embed_model": metadata.get("embed_model") if metadata else None,
+            "vector_dim": metadata.get("vector_dim") if metadata else None,
+            "index_version": metadata.get("index_version") if metadata else None,
+            "current_model": _get_current_embed_model(),
+            "current_dim": _get_vector_dimension(),
+        }
+    except Exception as e:
+        index_version_info = {
+            "has_metadata": False,
+            "error": str(e),
+        }
+    
+    # Получаем runtime state
+    runtime_status = router_instance.get_runtime_status()
+    
     return {
         "provider": provider.capabilities.provider,
         "models": {
@@ -72,6 +98,7 @@ async def get_admin_status(db: Session = Depends(get_db)):
             "is_indexing": stats.get("pending", 0) > 0,
             "stats": stats,
         },
+        "index_version": index_version_info,
         "services": [
             {"name": "backend", "status": "running", "detail": "FastAPI active"},
             {"name": "qdrant", "status": "running", "detail": f"{settings.qdrant_host}:{settings.qdrant_port}"},
@@ -79,6 +106,7 @@ async def get_admin_status(db: Session = Depends(get_db)):
             {"name": "provider", "status": "running", "detail": provider.capabilities.provider},
         ],
         "circuit_breaker": router_instance.circuit_breaker.get_status(),
+        "runtime_state": runtime_status,
         "timestamp": datetime.utcnow().isoformat(),
     }
 
