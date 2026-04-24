@@ -1,27 +1,35 @@
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct, Distance, VectorParams, ScalarQuantizationConfig, ScalarType
+from qdrant_client.models import (
+    Distance,
+    PointStruct,
+    ScalarQuantizationConfig,
+    ScalarType,
+    VectorParams,
+)
 
 from app.config import settings
-from llama_index.embeddings.ollama import OllamaEmbedding
 from app.indexer import bm25
+from app.models.router import ModelRouter
 
 qdrant = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+router = ModelRouter()
 COLLECTION_NAME = "multimodal_rag"
+EMBED_BATCH_SIZE = 32
 
 
 def _ensure_collection():
-    if not qdrant.collection_exists(COLLECTION_NAME):
-        qdrant.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=768, distance=Distance.COSINE, on_disk=True),
-            quantization_config=ScalarQuantizationConfig(
-                type=ScalarType.INT8,
-                always_ram=False,
-            ),
-        )
+    if qdrant.collection_exists(COLLECTION_NAME):
+        return
 
-
-EMBED_BATCH_SIZE = 32
+    vector_size = len(router.get_provider().embed_text("dimension probe"))
+    qdrant.create_collection(
+        collection_name=COLLECTION_NAME,
+        vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE, on_disk=True),
+        quantization_config=ScalarQuantizationConfig(
+            type=ScalarType.INT8,
+            always_ram=False,
+        ),
+    )
 
 
 def delete_file_chunks(file_path: str):
@@ -41,29 +49,28 @@ def delete_file_chunks(file_path: str):
 
 def embed_and_upsert(chunks: list, file_path: str, filename: str, file_type: str):
     _ensure_collection()
-    embedder = OllamaEmbedding(model_name=settings.embed_model, base_url=settings.ollama_host)
+    provider = router.get_provider()
 
     points = []
     for batch_start in range(0, len(chunks), EMBED_BATCH_SIZE):
         batch = chunks[batch_start:batch_start + EMBED_BATCH_SIZE]
-        embeddings = embedder.get_text_embedding_batch(batch)
-        for i, (chunk, emb) in enumerate(zip(batch, embeddings)):
-            global_idx = batch_start + i
-            doc_id = f"{file_path}_{global_idx}"
-            
-            # Индексируем в BM25
+        embeddings = provider.embed_texts(batch)
+        for index, (chunk, embedding) in enumerate(zip(batch, embeddings)):
+            global_index = batch_start + index
+            doc_id = f"{file_path}_{global_index}"
+
             bm25.index_text_bm25(doc_id, chunk)
-            
+
             points.append(
                 PointStruct(
                     id=doc_id,
-                    vector=emb,
+                    vector=embedding,
                     payload={
                         "text": chunk,
                         "path": file_path,
                         "filename": filename,
                         "file_type": file_type,
-                        "chunk_index": global_idx,
+                        "chunk_index": global_index,
                     },
                 )
             )
