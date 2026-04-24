@@ -13,8 +13,22 @@ def test_health_check():
     response = httpx.get(f"{BASE_URL}/api/health", timeout=10.0)
     assert response.status_code == 200
     data = response.json()
-    # API returns "ok" or "healthy"
-    assert data["status"] in ["healthy", "ok"]
+    assert data["status"] in ["healthy", "degraded"]
+    assert "components" in data
+    assert "database" in data["components"]
+    assert "qdrant" in data["components"]
+
+
+@pytest.mark.smoke
+def test_ready_endpoint():
+    """Test readiness endpoint contract."""
+    response = httpx.get(f"{BASE_URL}/api/ready", timeout=10.0)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] in ["ready", "degraded"]
+    assert "database" in data
+    assert "qdrant" in data
+    assert "provider" in data
 
 
 @pytest.mark.smoke

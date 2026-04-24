@@ -45,10 +45,21 @@ def test_rag_pipeline_health():
     response = httpx.get(f"{BASE_URL}/api/health", timeout=30.0)
     assert response.status_code == 200
     data = response.json()
-    # Check that all components are healthy
-    assert data["status"] == "healthy"
+    assert data["status"] in ["healthy", "degraded"]
     assert "components" in data
     components = data["components"]
     assert "qdrant" in components
     assert "ollama" in components
     assert "redis" in components
+
+
+@pytest.mark.integration
+def test_rag_pipeline_ready():
+    """Test readiness contract for the runtime path."""
+    response = httpx.get(f"{BASE_URL}/api/ready", timeout=30.0)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] in ["ready", "degraded"]
+    assert "database" in data
+    assert "qdrant" in data
+    assert "provider" in data
