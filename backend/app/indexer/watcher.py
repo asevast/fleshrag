@@ -17,14 +17,13 @@ from app.indexer.parsers.markitdown import parse_markitdown
 from app.indexer.chunker import chunk_text
 from app.indexer.embedder import embed_and_upsert
 from app.indexer import bm25
-from app.models.router import ModelRouter
 
 # Инициализация BM25 индекса при загрузке
 bm25.get_bm25_index()
 
 
-IGNORE_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", ".idea", ".vscode", "dist", "build", ".pytest_cache", ".mypy_cache", "$RECYCLE.BIN", "System Volume Information", "$WINDOWS.~BT", "$WINDOWS.~WS"}
-IGNORE_EXTS = {"", ".exe", ".dll", ".bin", ".iso", ".img", ".tmp", ".lock", ".log", ".db", ".sqlite", ".sqlite3", ".pyc", ".pyo", ".so", ".dylib", ".parts", ".wc", ".torrent", ".!ut", ".ini", ".dmg", ".deb", ".dat"}
+IGNORE_DIRS = {".git", "__pycache__", "node_modules", ".venv", "venv", ".idea", ".vscode", "dist", "build", ".pytest_cache", ".mypy_cache"}
+IGNORE_EXTS = {"", ".exe", ".dll", ".bin", ".iso", ".img", ".tmp", ".lock", ".log", ".db", ".sqlite", ".sqlite3", ".pyc", ".pyo", ".so", ".dylib"}
 
 # Статические расширения по типам
 TEXT_EXTS = {".txt", ".md", ".json", ".yaml", ".yml", ".csv", ".html", ".htm", ".xml", ".css", ".scss", ".less", ".sh", ".bat", ".ps1", ".sql", ".dockerfile", ".ini", ".cfg", ".toml", ".env", ".gitignore", ".gitattributes"}
@@ -45,31 +44,28 @@ def file_hash(path: str) -> str:
 
 
 def should_ignore(file_path: str) -> bool:
-    # Проверка на наличие игнорируемых директорий в любом месте пути
-    path_lower = file_path.lower()
-    for ignored in IGNORE_DIRS:
-        if ignored.lower() in path_lower:
-            return True
-    # Проверка расширения
+    parts = file_path.split(os.sep)
+    if any(ignored in parts for ignored in IGNORE_DIRS):
+        return True
     ext = os.path.splitext(file_path)[1].lower()
     if ext in IGNORE_EXTS:
         return True
     return False
 
 
-def index_directory(path: str, router: ModelRouter = None):
+def index_directory(path: str):
     for root, _, files in os.walk(path):
         for filename in files:
             file_path = os.path.join(root, filename)
             if should_ignore(file_path):
                 continue
             try:
-                index_single_file(file_path, router=router)
+                index_single_file(file_path)
             except Exception as e:
                 print(f"Error indexing {file_path}: {e}")
 
 
-def extract_text(file_path: str, ext: str, router: ModelRouter = None) -> str:
+def extract_text(file_path: str, ext: str) -> str:
     if ext in PDF_EXTS:
         return parse_pdf(file_path)
     elif ext == ".docx":
@@ -85,26 +81,18 @@ def extract_text(file_path: str, ext: str, router: ModelRouter = None) -> str:
         chunks = parse_code(file_path)
         return "\n\n".join([c.get("code", "") for c in chunks])
     elif ext in AUDIO_EXTS:
-        if router:
-            return parse_audio(file_path, router)
-        return parse_audio(file_path)  # fallback для совместимости
+        return parse_audio(file_path)
     elif ext in IMAGE_EXTS:
         return parse_image(file_path)
     elif ext in VIDEO_EXTS:
-        if router:
-            return parse_video(file_path, router)
-        return parse_video(file_path)  # fallback для совместимости
+        return parse_video(file_path)
     else:
         # Fallback: markitdown для остальных форматов
         return parse_markitdown(file_path)
 
 
-def index_single_file(file_path: str, db: Session = None, router: ModelRouter = None):
+def index_single_file(file_path: str, db: Optional[Session] = None):
     """Индексирует один файл. Удаляет старые чанки при переиндексации."""
-    # Дополнительная проверка на игнорирование
-    if should_ignore(file_path):
-        return
-    
     own_session = db is None
     if own_session:
         db = SessionLocal()
@@ -121,7 +109,7 @@ def index_single_file(file_path: str, db: Session = None, router: ModelRouter = 
         from app.indexer.embedder import delete_file_chunks
         delete_file_chunks(file_path)
 
-        text = extract_text(file_path, ext, router)
+        text = extract_text(file_path, ext)
 
         if text is None:
             text = ""

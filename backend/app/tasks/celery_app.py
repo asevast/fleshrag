@@ -31,10 +31,8 @@ def at_start(sender, **k):
 @celery_app.task(bind=True, max_retries=3)
 def index_directory_task(self, path: str):
     from app.indexer.watcher import index_directory
-    from app.models.router import ModelRouter
     try:
-        router = ModelRouter()
-        index_directory(path, router=router)
+        index_directory(path)
     except Exception as exc:
         raise self.retry(exc=exc, countdown=30)
 
@@ -42,9 +40,7 @@ def index_directory_task(self, path: str):
 @celery_app.task(bind=True, max_retries=3)
 def index_file_task(self, file_path: str):
     from app.indexer.watcher import index_single_file
-    from app.models.router import ModelRouter
     try:
-        router = ModelRouter()
-        index_single_file(file_path, router=router)
+        index_single_file(file_path)
     except Exception as exc:
         raise self.retry(exc=exc, countdown=10)

@@ -19,10 +19,6 @@ class MessageCreate(BaseModel):
     stream: bool = False
 
 
-class ConversationCreate(BaseModel):
-    title: Optional[str] = None
-
-
 class MessageResponse(BaseModel):
     id: int
     conversation_id: int
@@ -41,9 +37,9 @@ class ConversationSummary(BaseModel):
 
 
 @router.post("/conversations")
-async def create_conversation(req: Optional[ConversationCreate] = None, db: Session = Depends(get_db)):
+async def create_conversation(title: Optional[str] = None, db: Session = Depends(get_db)):
     """Создать новый диалог."""
-    conv = crud.create_conversation(db, req.title if req else None)
+    conv = crud.create_conversation(db, title)
     return {
         "id": conv.id,
         "title": conv.title,
@@ -138,30 +134,52 @@ async def ask_in_conversation(conv_id: int, req: MessageCreate, db: Session = De
                 # Стриминг с сохранением ответа
                 full_answer = ""
                 sources = None
+                error_occurred = False
                 
-                async for chunk in ask_query_stream(req.query, top_k=5):
-                    if chunk.startswith("data: "):
-                        data = chunk[6:].strip()
-                        if data == "[DONE]":
-                            # Сохраняем ответ
-                            if sources:
-                                crud.add_message(db, conv_id, "assistant", full_answer, sources)
-                            yield chunk
-                            break
-                        
-                        try:
-                            parsed = json.loads(data)
-                            if parsed.get("type") == "sources":
-                                sources = parsed.get("sources", [])
-                            elif parsed.get("type") == "token":
-                                full_answer += parsed.get("content", "")
-                        except:
-                            pass
-                    yield chunk
+                try:
+                    async for chunk in ask_query_stream(req.query, top_k=5):
+                        if chunk.startswith("data: "):
+                            data = chunk[6:].strip()
+                            if data == "[DONE]":
+                                # Сохраняем ответ
+                                if sources:
+                                    crud.add_message(db, conv_id, "assistant", full_answer, sources)
+                                yield chunk
+                                return
+                            
+                            try:
+                                parsed = json.loads(data)
+                                if parsed.get("type") == "sources":
+                                    sources = parsed.get("sources")
+                                elif parsed.get("type") == "token":
+                                    full_answer += parsed.get("content", "")
+                                elif parsed.get("type") == "error":
+                                    error_occurred = True
+                                    full_answer = f"Ошибка: {parsed.get('message', 'Неизвестная ошибка')}"
+                            except:
+                                pass
+                        yield chunk
+                except Exception as stream_exc:
+                    # Обработка ошибки стриминга
+                    error_occurred = True
+                    full_answer = f"Ошибка при генерации ответа: {str(stream_exc)}"
+                    # Отправляем финальный токен с ошибкой
+                    error_chunk = f'data: {{"type": "token", "content": "{full_answer}"}}\n\n'
+                    yield error_chunk
+                    yield "data: [DONE]\n\n"
+                
+                # Если была ошибка, сохраняем её как сообщение
+                if error_occurred and full_answer:
+                    crud.add_message(db, conv_id, "assistant", full_answer, None)
+            
             return StreamingResponse(stream_with_history(), media_type="text/event-stream")
         else:
             result = await ask_query(req.query, top_k=5)
             crud.add_message(db, conv_id, "assistant", result["answer"], result.get("sources", []))
             return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # При ошибке сохраняем сообщение об ошибке как assistant message
+        error_message = f"Не удалось получить ответ: {str(e)}"
+        crud.add_message(db, conv_id, "assistant", error_message, None)
+        # Возвращаем ошибку как обычный ответ (не HTTPException, чтобы фронтенд не ломался)
+        return {"answer": error_message, "sources": [], "error": str(e)}
