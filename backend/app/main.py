@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from qdrant_client import QdrantClient
 from sqlalchemy import text
 
-from app.api import conversations, export, files, index, models, search, settings
+from app.api import admin, conversations, export, files, index, models, search, settings
 from app.config import settings as app_settings
 from app.db.models import SessionLocal
 from app.indexer.watchdog_service import run_watchdog_forever
@@ -33,6 +33,7 @@ app.include_router(settings.router, prefix="/api")
 app.include_router(models.router, prefix="/api")
 app.include_router(conversations.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 
 def _check_database() -> str:

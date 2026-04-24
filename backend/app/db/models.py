@@ -42,6 +42,20 @@ class AppSetting(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
 
+class TokenLog(Base):
+    __tablename__ = "token_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String, nullable=False, index=True)
+    model = Column(String, nullable=False)
+    op_type = Column(String, nullable=False, index=True)
+    input_tok = Column(Integer, default=0)
+    output_tok = Column(Integer, default=0)
+    cost_usd = Column(Float, default=0.0)
+    meta_json = Column(Text, nullable=True)
+    ts = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+
 class Conversation(Base):
     __tablename__ = "conversations"
 
