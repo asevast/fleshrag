@@ -62,17 +62,38 @@ class LocalProvider:
         return self._embed_via_ollama(texts)
     
     def _embed_via_service(self, texts: list[str]) -> list[list[float]]:
+        """
+        Пытается получить эмбеддинги через embed-service.
+        При неудаче — fallback на Ollama с моделью nomic-embed-text.
+        """
         try:
             with httpx.Client() as client:
                 response = client.post(
-                    "http://embed_service:8001/embed",
+                    f"{settings.embed_service_url}/embed",
                     json={"texts": texts, "is_query": False},
                     timeout=60.0,
                 )
                 response.raise_for_status()
                 return response.json()["embeddings"]
         except httpx.HTTPError as e:
-            raise RuntimeError(f"embed-service unavailable for multilingual-e5-large: {e}") from e
+            # Fallback: пробуем использовать Ollama с nomic-embed-text
+            # Это менее качественная модель, но лучше чем полный отказ
+            import logging
+            logging.warning(
+                f"embed-service unavailable ({e}), falling back to Ollama nomic-embed-text"
+            )
+            try:
+                from llama_index.embeddings.ollama import OllamaEmbedding
+                fallback_embedder = OllamaEmbedding(
+                    model_name="nomic-embed-text",
+                    base_url=settings.ollama_host,
+                )
+                return fallback_embedder.get_text_embedding_batch(texts)
+            except Exception as fallback_error:
+                raise RuntimeError(
+                    f"embed-service unavailable for {self.embed_model}: {e}. "
+                    f"Fallback to Ollama also failed: {fallback_error}"
+                ) from fallback_error
     
     def _embed_via_ollama(self, texts: list[str]) -> list[list[float]]:
         return self.embedder.get_text_embedding_batch(texts)

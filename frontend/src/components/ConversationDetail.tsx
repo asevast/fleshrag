@@ -34,6 +34,7 @@ export default function ConversationDetail({ conversationId, onSend, onPreview }
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadConversation()
@@ -61,6 +62,7 @@ export default function ConversationDetail({ conversationId, onSend, onPreview }
     const query = input.trim()
     setInput('')
     setSending(true)
+    setError(null)
     
     // Optimistically add user message
     const tempId = Date.now()
@@ -77,8 +79,18 @@ export default function ConversationDetail({ conversationId, onSend, onPreview }
       await loadConversation() // Reload to get saved messages with sources
     } catch (e) {
       console.error('Failed to send message:', e)
+      const errorMessage = e instanceof Error ? e.message : 'Не удалось отправить сообщение'
+      setError(errorMessage)
       // Remove temp message on error
       setMessages(prev => prev.filter(m => m.id !== tempId))
+      // Add error message as assistant response
+      const errorMsg: Message = {
+        id: tempId + 1,
+        role: 'assistant',
+        content: `⚠️ ${errorMessage}`,
+        created_at: new Date().toISOString()
+      }
+      setMessages(prev => [...prev, errorMsg])
     } finally {
       setSending(false)
     }
@@ -113,6 +125,17 @@ export default function ConversationDetail({ conversationId, onSend, onPreview }
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            {error}
+            <button
+              onClick={() => setError(null)}
+              className="ml-2 text-red-600 hover:text-red-800"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {messages.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             Начните диалог, задав первый вопрос

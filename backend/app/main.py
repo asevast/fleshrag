@@ -71,6 +71,14 @@ def _check_ollama() -> str:
         return "error"
 
 
+def _check_embed_service() -> str:
+    try:
+        response = httpx.get(f"{app_settings.embed_service_url}/health", timeout=3.0)
+        return "ok" if response.status_code == 200 else "error"
+    except Exception:
+        return "error"
+
+
 def _provider_state() -> str:
     provider = SettingsService().get_active_provider()
     if provider == "cloud":
@@ -86,6 +94,7 @@ def _component_snapshot() -> dict[str, str]:
         "qdrant": _check_qdrant(),
         "redis": _check_redis(),
         "ollama": _check_ollama(),
+        "embed_service": _check_embed_service(),
         "provider": _provider_state(),
     }
 

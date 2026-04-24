@@ -27,59 +27,69 @@ export function useRag() {
   const ask = useCallback(async (query: string) => {
     setResult({ sources: [], answer: '', loading: true, error: '' })
 
-    const response = await fetch('/api/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, top_k: 5, stream: true }),
-    })
+    try {
+      const response = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, top_k: 5, stream: true }),
+      })
 
-    if (!response.body) {
-      setResult(prev => ({ ...prev, loading: false }))
-      return
-    }
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
+      }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
+      if (!response.body) {
+        setResult(prev => ({ ...prev, loading: false, error: 'Response body is null' }))
+        return
+      }
 
-    abortRef.current = () => reader.cancel()
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
 
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+      abortRef.current = () => reader.cancel()
 
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-      for (const line of lines) {
-        if (!line.trim()) continue
-        // SSE формат: data: {json}
-        const match = line.match(/^data:\s*(.+)$/)
-        if (!match) continue
-        const data = match[1].trim()
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
 
-        if (data === '[DONE]') {
-          setResult(prev => ({ ...prev, loading: false }))
-          return
-        }
+        for (const line of lines) {
+          if (!line.trim()) continue
+          // SSE формат: data: {json}
+          const match = line.match(/^data:\s*(.+)$/)
+          if (!match) continue
+          const data = match[1].trim()
 
-        try {
-          const parsed = JSON.parse(data)
-          if (parsed.type === 'sources') {
-            setResult(prev => ({ ...prev, sources: parsed.sources }))
-          } else if (parsed.type === 'token') {
-            setResult(prev => ({ ...prev, answer: prev.answer + parsed.content }))
-          } else if (parsed.type === 'error') {
-            setResult(prev => ({ ...prev, error: parsed.message, loading: false }))
+          if (data === '[DONE]') {
+            setResult(prev => ({ ...prev, loading: false }))
+            return
           }
-        } catch {
-          // ignore parse errors
+
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.type === 'sources') {
+              setResult(prev => ({ ...prev, sources: parsed.sources }))
+            } else if (parsed.type === 'token') {
+              setResult(prev => ({ ...prev, answer: prev.answer + parsed.content }))
+            } else if (parsed.type === 'error') {
+              setResult(prev => ({ ...prev, error: parsed.message, loading: false }))
+            }
+          } catch {
+            // ignore parse errors
+          }
         }
       }
-    }
 
-    setResult(prev => ({ ...prev, loading: false }))
+      setResult(prev => ({ ...prev, loading: false }))
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка'
+      setResult(prev => ({ ...prev, loading: false, error: errorMessage }))
+    }
   }, [])
 
   const cancel = useCallback(() => {

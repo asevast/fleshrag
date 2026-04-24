@@ -51,7 +51,11 @@ function App() {
     setLastQuery(query)
 
     if (view === 'ask') {
-      await rag.ask(query)
+      try {
+        await rag.ask(query)
+      } catch (error) {
+        console.error('Ask error:', error)
+      }
       return
     }
 
@@ -64,11 +68,14 @@ function App() {
         body: JSON.stringify({ query, top_k: 10, filters }),
       })
       if (!response.ok) {
-        throw new Error('Search failed')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
       setResults(await response.json())
     } catch (error) {
-      console.error(error)
+      console.error('Search error:', error)
+      // Показываем ошибку через пустой результат
+      setResults([])
     } finally {
       setSearchLoading(false)
     }
@@ -94,7 +101,8 @@ function App() {
     if (!conversationId) {
       const response = await fetch('/api/conversations?title=Новый диалог', { method: 'POST' })
       if (!response.ok) {
-        throw new Error('Conversation creation failed')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || 'Conversation creation failed')
       }
       const data = await response.json()
       conversationId = data.id
@@ -108,10 +116,23 @@ function App() {
     })
 
     if (!response.ok) {
-      throw new Error('Conversation ask failed')
+      const errorData = await response.json().catch(() => ({}))
+      // Если есть ошибка в ответе, используем её
+      if (errorData.error) {
+        // Бэкенд вернул ошибку как часть ответа (не HTTPException)
+        return { answer: errorData.error, sources: [] }
+      }
+      throw new Error(errorData.detail || 'Conversation ask failed')
     }
 
+    const result = await response.json()
+    // Если бэкенд вернул ошибку в теле ответа
+    if (result.error) {
+      throw new Error(result.error)
+    }
+    
     setConversationRefreshKey((value) => value + 1)
+    return result
   }
 
   useEffect(() => {
