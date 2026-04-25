@@ -25,3 +25,4 @@ volumes/
 test_data/
 TZ_Multimodal_RAG_v2.2.md
 4cea1ded-35ef-4bd6-8a20-72138eef4462.json
+scripts/fetch_openrouter_model.ps1
