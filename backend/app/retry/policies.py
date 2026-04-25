@@ -123,7 +123,7 @@ async def retry_with_backoff(
     if policy is None:
         policy = POLICIES["chat"]  # default policy
     
-    last_exception = None
+    last_exception: Exception | None = None
     
     for attempt in range(policy.max_retries):
         try:
@@ -151,7 +151,12 @@ async def retry_with_backoff(
                     f"Исчерпаны все попытки для {func.__name__} после {policy.max_retries} повторов"
                 )
     
-    raise last_exception
+    # Raise the last exception if all retries failed
+    if last_exception is not None:
+        raise last_exception
+    
+    # Should not reach here, but raise a generic error if it does
+    raise RuntimeError(f"Function {func.__name__} failed after {policy.max_retries} retries")
 
 
 def retry_async(policy_name: str = "chat"):
