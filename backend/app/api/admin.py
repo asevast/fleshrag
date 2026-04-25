@@ -13,6 +13,7 @@ from app.db.models import TokenLog, get_db
 from app.models import ModelRouter
 from app.services.settings_service import SettingsService
 from app.tasks.celery_app import index_directory_task
+from app.gpu.policy import gpu_policy_manager
 
 router = APIRouter()
 
@@ -87,6 +88,9 @@ async def get_admin_status(db: Session = Depends(get_db)):
     # Получаем runtime state
     runtime_status = router_instance.get_runtime_status()
     
+    # Получаем GPU status
+    gpu_status = gpu_policy_manager.get_policy_status()
+    
     return {
         "provider": provider.capabilities.provider,
         "models": {
@@ -107,6 +111,7 @@ async def get_admin_status(db: Session = Depends(get_db)):
         ],
         "circuit_breaker": router_instance.circuit_breaker.get_status(),
         "runtime_state": runtime_status,
+        "gpu": gpu_status,
         "timestamp": datetime.utcnow().isoformat(),
     }
 
