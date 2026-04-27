@@ -72,7 +72,11 @@ async def get_admin_status(db: Session = Depends(get_db)):
     try:
         from app.indexer.embedder import COLLECTION_NAME, _get_index_metadata, _get_current_embed_model, _get_vector_dimension
         from qdrant_client import QdrantClient
-        qdrant_admin = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+        qdrant_admin = QdrantClient(
+            host=settings.qdrant_host,
+            port=settings.qdrant_port,
+            timeout=10.0,  # Увеличенный таймаут для медленных запросов
+        )
         
         metadata = _get_index_metadata() if qdrant_admin.collection_exists(COLLECTION_NAME) else None
         
@@ -87,7 +91,7 @@ async def get_admin_status(db: Session = Depends(get_db)):
     except Exception as e:
         index_version_info = {
             "has_metadata": False,
-            "error": str(e),
+            "error": f"Request timed out or unavailable: {str(e)}",
         }
     
     # Получаем runtime state
