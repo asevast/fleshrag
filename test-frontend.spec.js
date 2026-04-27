@@ -237,4 +237,62 @@ test.describe('FleshRAG Frontend Tests', () => {
     const switchButton = page.getByRole('button', { name: /Switch to/ });
     await expect(switchButton).toBeVisible();
   });
+
+  // ============================================================
+  // 6. INDEX PATHS MANAGEMENT TESTS
+  // ============================================================
+  test('admin panel shows index paths section', async ({ page }) => {
+    await page.getByRole('button', { name: 'Admin' }).click();
+    await page.waitForTimeout(5000);
+    await expect(page.getByText('Index paths')).toBeVisible();
+  });
+
+  test('index paths edit button exists', async ({ page }) => {
+    await page.getByRole('button', { name: 'Admin' }).click();
+    await page.waitForTimeout(5000);
+    const editButton = page.getByRole('button', { name: /Edit paths|Add paths/ });
+    await expect(editButton).toBeVisible();
+  });
+
+  test('index paths can be edited', async ({ page }) => {
+    await page.getByRole('button', { name: 'Admin' }).click();
+    await page.waitForTimeout(5000);
+    const editButton = page.getByRole('button', { name: /Edit paths|Add paths/ });
+    await editButton.click();
+    await page.waitForTimeout(1000);
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible();
+    const cancelButton = page.getByRole('button', { name: 'Cancel' });
+    await expect(cancelButton).toBeVisible();
+  });
+
+  // ============================================================
+  // 7. BULK DELETE DIALOGS TESTS
+  // ============================================================
+  test('dialogs list shows checkboxes', async ({ page }) => {
+    await page.getByRole('button', { name: 'Dialogs' }).click();
+    await page.waitForTimeout(5000);
+    const checkbox = page.locator('input[type="checkbox"]').first();
+    await expect(checkbox).toBeVisible();
+  });
+
+  test('bulk delete button appears when dialogs selected', async ({ page }) => {
+    await page.getByRole('button', { name: 'Dialogs' }).click();
+    await page.waitForTimeout(5000);
+    const firstCheckbox = page.locator('input[type="checkbox"]').first();
+    await firstCheckbox.click();
+    await page.waitForTimeout(1000);
+    const deleteButton = page.getByRole('button', { name: /Удалить \(\d+\)/ });
+    await expect(deleteButton).toBeVisible();
+  });
+
+  test('select all checkbox works', async ({ page }) => {
+    await page.getByRole('button', { name: 'Dialogs' }).click();
+    await page.waitForTimeout(5000);
+    const selectAllCheckbox = page.locator('input[type="checkbox"]').first();
+    await selectAllCheckbox.click();
+    await page.waitForTimeout(1000);
+    const deselectButton = page.getByRole('button', { name: 'Снять выбор' });
+    await expect(deselectButton).toBeVisible();
+  });
 });
