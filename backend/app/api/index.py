@@ -30,7 +30,7 @@ class IndexVersionResponse(BaseModel):
     current_model: str
     current_dim: int
     compatible: bool
-    message: str
+    meenvssage: str
 
 
 @router.get("/index/status")
@@ -151,7 +151,7 @@ async def get_index_version(db: Session = Depends(get_db)):
 @router.post("/index/trigger")
 async def trigger_index(background_tasks: BackgroundTasks):
     from app.config import settings
-    for path in settings.index_paths.split(":"):
+    for path in settings.get_index_paths():
         index_directory_task.delay(path)
     return {"message": "Indexing triggered"}
 

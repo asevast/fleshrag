@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -42,6 +43,29 @@ class Settings(BaseSettings):
 
     llm_temperature: float = 0.3
     llm_max_tokens: int = 1000
+
+    def get_index_paths(self) -> list[str]:
+        """
+        Парсит INDEX_PATHS с учётом ОС.
+        
+        Для Windows: разделитель ; (так как : есть в путях типа E:)
+        Для Linux/Mac: разделитель :
+        
+        Returns:
+            Список путей для индексации
+        """
+        if not self.index_paths:
+            return []
+        
+        # Проверяем есть ли Windows пути (с буквой диска)
+        has_windows_paths = bool(re.search(r'[A-Za-z]:', self.index_paths))
+        
+        if has_windows_paths:
+            # Разделитель ; для Windows
+            return [p.strip() for p in self.index_paths.split(";") if p.strip()]
+        else:
+            # Разделитель : для Linux/Mac
+            return [p.strip() for p in self.index_paths.split(":") if p.strip()]
 
     @computed_field
     @property

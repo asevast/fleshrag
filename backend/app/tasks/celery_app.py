@@ -23,7 +23,7 @@ celery_app.conf.update(
 @worker_ready.connect
 def at_start(sender, **k):
     from app.config import settings
-    for path in settings.index_paths.split(":"):
+    for path in settings.get_index_paths():
         if os.path.isdir(path):
             index_directory_task.delay(path)
 

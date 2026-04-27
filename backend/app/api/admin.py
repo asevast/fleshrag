@@ -32,7 +32,7 @@ async def get_admin_settings(db: Session = Depends(get_db)):
         "chunk_overlap": service.get_chunk_overlap(),
         "top_k_search": service.get_top_k_search(),
         "top_k_rerank": service.get_top_k_rerank(),
-        "index_paths": [p for p in settings.index_paths.split(":") if p],
+        "index_paths": settings.get_index_paths(),
     }
 
 
@@ -175,7 +175,7 @@ async def get_budget_stats(db: Session = Depends(get_db)):
 
 @router.post("/admin/index/reindex-all")
 async def admin_reindex_all():
-    indexed_paths = [p for p in settings.index_paths.split(":") if p]
+    indexed_paths = settings.get_index_paths()
     for path in indexed_paths:
         index_directory_task.delay(path)
     return {

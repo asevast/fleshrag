@@ -33,7 +33,7 @@ class IndexEventHandler(FileSystemEventHandler):
 
     def _schedule(self, path: str):
         # Проверяем, что файл внутри индексируемых директорий
-        for indexed_path in settings.index_paths.split(":"):
+        for indexed_path in settings.get_index_paths():
             if path.startswith(indexed_path):
                 index_file_task.delay(path)
                 break
@@ -50,7 +50,7 @@ def start_watchdog(paths: list):
 
 
 def run_watchdog_forever():
-    paths = settings.index_paths.split(":")
+    paths = settings.get_index_paths()
     observer = start_watchdog(paths)
     try:
         while True:
