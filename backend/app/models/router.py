@@ -51,7 +51,7 @@ class ModelRouter:
         Возвращает провайдера с учётом circuit breaker и runtime state.
         
         Если provider="cloud" но circuit breaker в состоянии OPEN,
-        автоматически переключается на local и записывает в runtime state.
+        создаёт CloudProvider но circuit breaker предотвратит запрос.
         """
         if provider:
             # Если указан явно — создаём новый экземпляр
@@ -67,16 +67,16 @@ class ModelRouter:
             return self._provider
         
         # Проверяем circuit breaker для cloud provider
+        # Если OPEN — не блокируем, но записываем warning
         if resolved_provider == "cloud" and not self.circuit_breaker.can_execute():
-            # Cloud недоступен, переключаемся на local
-            self.runtime_state.set_active_provider(
-                "local",
-                reason=f"Circuit breaker open: {self.circuit_breaker.failure_count} failures"
+            logger.warning(
+                f"Circuit breaker open ({self.circuit_breaker.failure_count} failures), "
+                f"but using cloud provider as requested"
             )
-            return self._get_local_provider()
+            # Не переключаем на local — пользователь явно выбрал cloud
 
         # Записываем успех если используем cloud
-        if resolved_provider == "cloud" and self._provider.capabilities.provider == "cloud":
+        if resolved_provider == "cloud":
             self.runtime_state.record_success()
         
         return self._create_provider(resolved_provider)
@@ -88,13 +88,21 @@ class ModelRouter:
         return self._local_provider
 
     def _create_provider(self, provider_name: str):
+        """
+        Создаёт провайдера для указанного типа.
+        
+        Если provider_name="cloud" — всегда создаёт CloudProvider,
+        даже если API key не настроен (ошибка будет при runtime).
+        """
         llm_model = self.settings.get_llm_model(provider_name)
         embed_model = self.settings.get_embed_model(provider_name)
         rerank_model = self.settings.get_rerank_model(provider_name)
         temperature = self.settings.get_temperature()
         max_tokens = self.settings.get_max_tokens()
 
-        if provider_name == "cloud" and settings.neuraldeep_api_key:
+        if provider_name == "cloud":
+            # Всегда создаём CloudProvider если выбран cloud
+            # Проверка API key будет при runtime запросе
             return CloudProvider(
                 llm_model=llm_model,
                 embed_model=embed_model,
