@@ -25,25 +25,82 @@ class SettingsService:
         return provider if provider in valid_providers else settings.default_provider
 
     def get_llm_model(self, provider: str | None = None) -> str:
+        """
+        Получает LLM модель для провайдера.
+        
+        Если provider='cloud' но в БД записана локальная модель — использует cloud модель по умолчанию.
+        Если provider='local' но в БД записана cloud модель — использует local модель по умолчанию.
+        
+        Args:
+            provider: Тип провайдера (cloud/local). Если None — использует active_provider.
+        
+        Returns:
+            Название модели
+        """
         resolved_provider = provider or self.get_active_provider()
         default_model = (
             settings.cloud_llm_model if resolved_provider == "cloud" else settings.local_llm_model
         )
-        return str(self._get("llm_model", default_model))
+        value = self._get("llm_model", default_model)
+        
+        # Если в БД записана модель но она не соответствует провайдеру — используем default
+        if value != default_model:
+            # Проверяем не交叉лась ли модель (cloud ↔ local)
+            if resolved_provider == "cloud" and value == settings.local_llm_model:
+                return default_model
+            if resolved_provider == "local" and value == settings.cloud_llm_model:
+                return default_model
+        
+        return str(value)
 
     def get_embed_model(self, provider: str | None = None) -> str:
+        """
+        Получает embedding модель для провайдера.
+        
+        Args:
+            provider: Тип провайдера (cloud/local). Если None — использует active_provider.
+        
+        Returns:
+            Название модели
+        """
         resolved_provider = provider or self.get_active_provider()
         default_model = (
             settings.cloud_embed_model if resolved_provider == "cloud" else settings.local_embed_model
         )
-        return str(self._get("embed_model", default_model))
+        value = self._get("embed_model", default_model)
+        
+        # Если в БД записана модель но она не соответствует провайдеру — используем default
+        if value != default_model:
+            if resolved_provider == "cloud" and value == settings.local_embed_model:
+                return default_model
+            if resolved_provider == "local" and value == settings.cloud_embed_model:
+                return default_model
+        
+        return str(value)
 
     def get_rerank_model(self, provider: str | None = None) -> str | None:
+        """
+        Получает rerank модель для провайдера.
+        
+        Args:
+            provider: Тип провайдера (cloud/local). Если None — использует active_provider.
+        
+        Returns:
+            Название модели или None
+        """
         resolved_provider = provider or self.get_active_provider()
         default_model = (
             settings.cloud_rerank_model if resolved_provider == "cloud" else settings.local_rerank_model
         )
         value = self._get("rerank_model", default_model)
+        
+        # Если в БД записана модель но она не соответствует провайдеру — используем default
+        if value and value != default_model:
+            if resolved_provider == "cloud" and value == settings.local_rerank_model:
+                value = default_model
+            if resolved_provider == "local" and value == settings.cloud_rerank_model:
+                value = default_model
+        
         return None if value in {None, "", "none"} else str(value)
 
     def get_temperature(self) -> float:
