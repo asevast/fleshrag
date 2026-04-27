@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -62,4 +63,45 @@ class SettingsService:
 
     def get_chunk_overlap(self) -> int:
         return int(self._get("chunk_overlap", settings.chunk_overlap))
+
+    def get_index_paths(self) -> list[str]:
+        """
+        Получает пути индексации из БД.
+
+        Если в БД не настроено — использует fallback из .env.
+        
+        Returns:
+            Список путей для индексации
+        """
+        if self.db is None:
+            return settings.get_index_paths()
+        
+        value = crud.get_setting(self.db, "index_paths", None)
+        if value is None:
+            # Fallback на .env
+            return settings.get_index_paths()
+        
+        # Парсим строку из БД (разделитель ; для Windows, : для Linux)
+        import re
+        has_windows_paths = bool(re.search(r'[A-Za-z]:', value))
+        if has_windows_paths:
+            return [p.strip() for p in value.split(";") if p.strip()]
+        else:
+            return [p.strip() for p in value.split(":") if p.strip()]
+
+    def set_index_paths(self, paths: list[str]):
+        """
+        Устанавливает пути индексации в БД.
+        
+        Args:
+            paths: Список путей для индексации
+        """
+        if self.db is None:
+            raise RuntimeError("Database session is required")
+        
+        # Сохраняем как строку с разделителем
+        has_windows_paths = any(re.search(r'[A-Za-z]:', p) for p in paths)
+        separator = ";" if has_windows_paths else ":"
+        value = separator.join(paths)
+        crud.set_setting(self.db, "index_paths", value)
 

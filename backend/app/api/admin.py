@@ -32,12 +32,13 @@ async def get_admin_settings(db: Session = Depends(get_db)):
         "chunk_overlap": service.get_chunk_overlap(),
         "top_k_search": service.get_top_k_search(),
         "top_k_rerank": service.get_top_k_rerank(),
-        "index_paths": settings.get_index_paths(),
+        "index_paths": service.get_index_paths(),
     }
 
 
 @router.put("/admin/settings")
 async def update_admin_settings(payload: dict, db: Session = Depends(get_db)):
+    service = SettingsService(db)
     allowed_keys = {
         "active_provider",
         "llm_model",
@@ -49,11 +50,15 @@ async def update_admin_settings(payload: dict, db: Session = Depends(get_db)):
         "chunk_overlap",
         "top_k_search",
         "top_k_rerank",
+        "index_paths",
     }
     for key, value in payload.items():
         if key not in allowed_keys:
             continue
-        crud.set_setting(db, key, str(value))
+        if key == "index_paths":
+            service.set_index_paths(value)
+        else:
+            crud.set_setting(db, key, str(value))
     return await get_admin_settings(db)
 
 
