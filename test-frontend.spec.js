@@ -264,6 +264,38 @@ test.describe('FleshRAG Frontend Tests', () => {
     await expect(textarea).toBeVisible();
     const cancelButton = page.getByRole('button', { name: 'Cancel' });
     await expect(cancelButton).toBeVisible();
+    const saveButton = page.getByRole('button', { name: 'Save' });
+    await expect(saveButton).toBeVisible();
+  });
+
+  test('index paths full UX flow: edit and save', async ({ page }) => {
+    await page.getByRole('button', { name: 'Admin' }).click();
+    await page.waitForTimeout(5000);
+    
+    // Step 1: Click Edit
+    const editButton = page.getByRole('button', { name: /Edit paths|Add paths/ });
+    await editButton.click();
+    await page.waitForTimeout(1000);
+    
+    // Step 2: Verify textarea is visible
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible();
+    
+    // Step 3: Verify both Save and Cancel buttons
+    const saveButton = page.getByRole('button', { name: 'Save' });
+    const cancelButton = page.getByRole('button', { name: 'Cancel' });
+    await expect(saveButton).toBeVisible();
+    await expect(cancelButton).toBeVisible();
+    
+    // Step 4: Verify Save button is enabled and clickable
+    await expect(saveButton).toBeEnabled();
+    
+    // Step 5: Click Cancel to avoid actual save
+    await cancelButton.click();
+    await page.waitForTimeout(500);
+    
+    // Step 6: Verify edit mode is closed
+    await expect(textarea).not.toBeVisible();
   });
 
   // ============================================================

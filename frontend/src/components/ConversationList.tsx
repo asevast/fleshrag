@@ -53,8 +53,11 @@ export default function ConversationList({ onSelect, onNew, onDelete, onExport, 
       })
       
       if (response.ok) {
+        const count = selectedIds.length
         setConversations(prev => prev.filter(c => !selectedIds.includes(c.id)))
         setSelectedIds([])
+        // Уведомление об успешном удалении
+        alert(`✅ Удалено диалогов: ${count}`)
       } else {
         // Fallback: удаляем по одному
         for (const id of selectedIds) {
@@ -66,9 +69,11 @@ export default function ConversationList({ onSelect, onNew, onDelete, onExport, 
         }
         setConversations(prev => prev.filter(c => !selectedIds.includes(c.id)))
         setSelectedIds([])
+        alert(`✅ Удалено диалогов: ${selectedIds.length}`)
       }
     } catch (e) {
       console.error('Failed to bulk delete conversations:', e)
+      alert('❌ Ошибка при удалении диалогов')
     } finally {
       setBulkDeleting(false)
     }
