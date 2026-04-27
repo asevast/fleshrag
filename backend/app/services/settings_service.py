@@ -19,14 +19,9 @@ class SettingsService:
         return default if value is None else value
 
     def get_active_provider(self) -> str:
-        default_provider = settings.default_provider
-        if default_provider == "cloud" and not settings.neuraldeep_api_key:
-            default_provider = "local"
-        provider = str(self._get("active_provider", default_provider)).lower()
-        if provider == "cloud" and not settings.neuraldeep_api_key:
-            return "local"
+        provider = str(self._get("active_provider", settings.default_provider)).lower()
         valid_providers = {"cloud", "local", "local_embed"}
-        return provider if provider in valid_providers else default_provider
+        return provider if provider in valid_providers else settings.default_provider
 
     def get_llm_model(self, provider: str | None = None) -> str:
         resolved_provider = provider or self.get_active_provider()

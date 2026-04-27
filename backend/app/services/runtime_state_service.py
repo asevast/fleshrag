@@ -102,8 +102,38 @@ class RuntimeStateService:
             print(f"Error saving runtime state: {e}")
     
     def get_active_provider(self) -> str:
-        """Получает активного провайдера (с учётом fallback)."""
+        """
+        Получает активного провайдера (с учётом fallback).
+        
+        Приоритеты:
+        1. Runtime state из Redis (если есть fallback/ circuit breaker)
+        2. Settings из SQLite (persistent configuration)
+        3. Default provider из окружения
+        """
         state = self.get_state()
+        
+        # Проверяем settings из БД для синхронизации
+        # Это нужно когда пользователь переключил provider через UI
+        try:
+            from app.db.models import SessionLocal
+            from app.services.settings_service import SettingsService
+            db = SessionLocal()
+            settings_service = SettingsService(db)
+            db_provider = settings_service.get_active_provider()
+            db.close()
+            
+            # Если в БД provider отличается от runtime — используем БД
+            # (пользователь явно переключил через UI)
+            if db_provider and db_provider != state.active_provider:
+                # Проверяем что это не fallback из-за circuit breaker
+                if not state.fallback_active:
+                    self.set_active_provider(db_provider)
+                    return db_provider
+        except Exception as e:
+            # Если не удалось получить из БД — используем runtime state
+            print(f"Warning: could not sync with DB settings: {e}")
+            pass
+    
         return state.active_provider
     
     def set_active_provider(self, provider: str, reason: str = None):
