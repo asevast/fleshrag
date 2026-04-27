@@ -327,4 +327,127 @@ test.describe('FleshRAG Frontend Tests', () => {
     const deselectButton = page.getByRole('button', { name: 'Снять выбор' });
     await expect(deselectButton).toBeVisible();
   });
+
+  // ============================================================
+  // 8. SCREENSHOT DEBUG TEST
+  // ============================================================
+  test('admin index paths screenshot after edit click', async ({ page }) => {
+    await page.getByRole('button', { name: 'Admin' }).click();
+    await page.waitForTimeout(5000);
+    
+    // Прокрутка до Index paths
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(1000);
+    
+    // Клик Edit paths
+    const editButton = page.getByRole('button', { name: /Edit paths|Add paths/ });
+    await editButton.click();
+    await page.waitForTimeout(2000);
+    
+    // Скриншот
+    await page.screenshot({ path: 'test-results/admin-index-paths-edit.png', fullPage: true });
+    
+    // Проверка что Save видима
+    const saveButton = page.getByRole('button', { name: 'Save' });
+    await expect(saveButton).toBeVisible();
+  });
+
+  // ============================================================
+  // 9. DIALOGS BULK DELETE - FULL FLOW WITH LOGGING
+  // ============================================================
+  test('dialogs bulk delete complete flow with logging', async ({ page }) => {
+    const logs = [];
+    logs.push(`[START] Dialogs Bulk Delete Test - ${new Date().toISOString()}`);
+    
+    // Обработчик confirm dialog
+    page.on('dialog', async dialog => {
+      logs.push(`[DIALOG] ${dialog.type()}: ${dialog.message()}`);
+      await dialog.accept();
+      logs.push('[DIALOG] ✓ Confirmed');
+    });
+    
+    // Step 1: Navigate to Dialogs
+    logs.push('[STEP 1] Navigating to Dialogs tab...');
+    await page.getByRole('button', { name: 'Dialogs' }).click();
+    await page.waitForTimeout(5000);
+    logs.push('[STEP 1] ✓ Dialogs tab opened');
+    
+    // Step 2: Check if dialogs exist
+    const dialogCount = await page.locator('input[type="checkbox"]').count();
+    logs.push(`[STEP 2] Found ${dialogCount} dialogs with checkboxes`);
+    
+    // Step 3: Create a test dialog if none exist
+    if (dialogCount === 0) {
+      logs.push('[STEP 3] No dialogs found. Creating test dialog...');
+      await page.getByRole('button', { name: '+ Новый' }).click();
+      await page.waitForTimeout(2000);
+      logs.push('[STEP 3] ✓ Test dialog created');
+    }
+    
+    // Step 4: Select first dialog
+    logs.push('[STEP 4] Selecting first dialog...');
+    const firstCheckbox = page.locator('input[type="checkbox"]').first();
+    await firstCheckbox.click();
+    await page.waitForTimeout(1000);
+    logs.push('[STEP 4] ✓ First dialog selected');
+    
+    // Step 5: Verify bulk delete button appears
+    logs.push('[STEP 5] Checking for bulk delete button...');
+    const deleteButton = page.getByRole('button', { name: /Удалить \(\d+\)/ });
+    const isDeleteVisible = await deleteButton.isVisible();
+    logs.push(`[STEP 5] Delete button visible: ${isDeleteVisible}`);
+    
+    if (!isDeleteVisible) {
+      logs.push('[ERROR] Delete button not visible!');
+      await page.screenshot({ path: 'test-results/dialogs-bulk-delete-error.png' });
+    }
+    
+    // Step 6: Take screenshot before delete
+    logs.push('[STEP 6] Taking screenshot before delete...');
+    await page.screenshot({ path: 'test-results/dialogs-before-delete.png', fullPage: true });
+    
+    // Step 7: Click delete button
+    logs.push('[STEP 7] Clicking delete button...');
+    const deleteButtonText = await deleteButton.textContent();
+    logs.push(`[STEP 7] Delete button text: "${deleteButtonText}"`);
+    await deleteButton.click();
+    await page.waitForTimeout(2000);
+    
+    // Step 8: Confirm dialog was handled
+    logs.push('[STEP 8] Waiting for confirm dialog to be handled...');
+    await page.waitForTimeout(1000);
+    
+    // Step 9: Wait for deletion
+    logs.push('[STEP 9] Waiting for deletion to complete...');
+    await page.waitForTimeout(3000);
+    
+    // Step 10: Take screenshot after delete
+    logs.push('[STEP 10] Taking screenshot after delete...');
+    await page.screenshot({ path: 'test-results/dialogs-after-delete.png', fullPage: true });
+    
+    // Step 11: Verify dialog count decreased
+    const remainingDialogs = await page.locator('input[type="checkbox"]').count();
+    logs.push(`[STEP 11] Remaining dialogs: ${remainingDialogs} (was ${dialogCount})`);
+    
+    // Step 12: Check for success notification (alert)
+    logs.push('[STEP 12] Checking for success notification...');
+    
+    // Final summary
+    logs.push(`\n[SUMMARY]`);
+    logs.push(`- Initial dialogs: ${dialogCount}`);
+    logs.push(`- Remaining dialogs: ${remainingDialogs}`);
+    logs.push(`- Deleted: ${dialogCount - remainingDialogs}`);
+    logs.push(`- Delete button visible: ${isDeleteVisible}`);
+    logs.push(`- Test completed: ${new Date().toISOString()}`);
+    
+    // Save logs to file
+    const fs = require('fs');
+    fs.writeFileSync('test-results/dialogs-bulk-delete-log.txt', logs.join('\n'));
+    
+    console.log(logs.join('\n'));
+    
+    // Assertions
+    expect(isDeleteVisible).toBeTruthy();
+    expect(remainingDialogs).toBeLessThan(dialogCount);
+  });
 });
