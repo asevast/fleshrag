@@ -104,6 +104,37 @@ async def delete_conversation(conv_id: int, db: Session = Depends(get_db)):
     return {"status": "deleted"}
 
 
+class BulkDeleteRequest(BaseModel):
+    ids: List[int]
+
+
+@router.post("/conversations/bulk-delete")
+async def bulk_delete_conversations(req: BulkDeleteRequest, db: Session = Depends(get_db)):
+    """
+    Удалить несколько диалогов по ID.
+    
+    Args:
+        req: BulkDeleteRequest с списком ID для удаления
+        
+    Returns:
+        Статус операции и количество удалённых диалогов
+    """
+    deleted_count = 0
+    for conv_id in req.ids:
+        try:
+            if crud.delete_conversation(db, conv_id):
+                deleted_count += 1
+        except Exception as e:
+            # Логируем ошибку но продолжаем удаление остальных
+            print(f"Failed to delete conversation {conv_id}: {e}")
+    
+    return {
+        "status": "deleted",
+        "deleted_count": deleted_count,
+        "requested_count": len(req.ids),
+    }
+
+
 @router.post("/conversations/{conv_id}/ask")
 async def ask_in_conversation(conv_id: int, req: MessageCreate, db: Session = Depends(get_db)):
     """

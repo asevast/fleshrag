@@ -82,6 +82,7 @@ interface ConnectionTest {
 
 interface AdminSettings {
   active_provider: 'cloud' | 'local'
+  index_paths: string[]
 }
 
 export default function AdminConsole() {
@@ -94,6 +95,8 @@ export default function AdminConsole() {
   const [switching, setSwitching] = useState(false)
   const [reindexing, setReindexing] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [editingPaths, setEditingPaths] = useState(false)
+  const [indexPathsInput, setIndexPathsInput] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -167,9 +170,41 @@ export default function AdminConsole() {
     }
   }
 
+  const saveIndexPaths = async () => {
+    setNotice(null)
+    const paths = indexPathsInput.split(';').map(p => p.trim()).filter(p => p)
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index_paths: paths }),
+      })
+      if (!response.ok) throw new Error('Failed to save index paths')
+      const data = await response.json()
+      setSettings(data)
+      setEditingPaths(false)
+      setNotice(`Пути индексации обновлены (${paths.length} путей)`)
+      await load()
+    } catch (error) {
+      console.error(error)
+      setNotice('Не удалось сохранить пути индексации')
+    }
+  }
+
+  const cancelEditPaths = () => {
+    setEditingPaths(false)
+    setIndexPathsInput(settings?.index_paths.join('; ') || '')
+  }
+
   useEffect(() => {
     load()
   }, [])
+
+  useEffect(() => {
+    if (settings?.index_paths) {
+      setIndexPathsInput(settings.index_paths.join('; '))
+    }
+  }, [settings])
 
   const weekMax = useMemo(() => {
     if (!budget?.last_7_days.length) return 1
@@ -430,6 +465,69 @@ export default function AdminConsole() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="soft-card rounded-[28px] p-5">
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5 text-[rgb(var(--brand))]" />
+              <h3 className="text-lg font-semibold">Index paths</h3>
+            </div>
+            <div className="mt-4">
+              {editingPaths ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={indexPathsInput}
+                    onChange={(e) => setIndexPathsInput(e.target.value)}
+                    placeholder="E:\data; D:\documents; C:\Users\Name\Files"
+                    className="w-full rounded-2xl border border-[rgba(207,190,165,0.4)] bg-white/70 p-3 text-sm font-mono focus:border-[rgb(var(--accent))] focus:outline-none"
+                    rows={4}
+                  />
+                  <div className="text-xs text-[rgb(var(--muted))]">
+                    Разделяйте пути точкой с запятой (;). Пример: <code className="rounded bg-[rgba(207,190,165,0.2)] px-1">E:\data; D:\documents</code>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveIndexPaths}
+                      className="rounded-2xl bg-[rgb(var(--success))] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[rgb(var(--success-strong))] disabled:opacity-60"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEditPaths}
+                      className="rounded-2xl border border-[rgba(207,190,165,0.7)] bg-white px-4 py-2 text-sm font-medium text-[rgb(var(--muted))] transition hover:bg-stone-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="space-y-2">
+                    {(settings?.index_paths || []).length === 0 ? (
+                      <div className="text-sm text-[rgb(var(--muted))] italic">
+                        Пути не настроены. Добавьте пути для индексации.
+                      </div>
+                    ) : (
+                      settings?.index_paths.map((path, idx) => (
+                        <div key={idx} className="flex items-center gap-2 rounded-xl border border-[rgba(207,190,165,0.3)] bg-white/60 px-3 py-2 text-sm">
+                          <Database className="h-4 w-4 text-[rgb(var(--muted))]" />
+                          <span className="flex-1 truncate font-mono text-[rgb(var(--muted))]">{path}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingPaths(true)
+                      setIndexPathsInput(settings?.index_paths.join('; ') || '')
+                    }}
+                    className="mt-3 rounded-2xl border border-[rgba(207,190,165,0.7)] bg-white px-4 py-2 text-sm font-medium text-[rgb(var(--accent))] transition hover:bg-[rgba(26,116,122,0.08)]"
+                  >
+                    {settings?.index_paths?.length ? 'Edit paths' : 'Add paths'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
